@@ -70,7 +70,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
   Gunakan Project URL dan anon/public key saja.
   JANGAN masukkan service_role key atau database password ke file browser.
 */
-const SUPABASE_URL = "sb_publishable_pCsvlt2F6ZEGHflu79RxHQ_e0GvchMf";
+const SUPABASE_URL = "https://dlesiyjeftpvftutwtmb.supabase.co/rest/v1/";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXNpeWplZnRwdmZ0dXR3dG1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDkxOTgsImV4cCI6MjEwOTE4NTE5OH0.X-meJuvvtdKRRjRMXr8Q7amuSZh0cHcA6CQdD_y3CK0";
 const configured = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
 const client = configured ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY) : null;
