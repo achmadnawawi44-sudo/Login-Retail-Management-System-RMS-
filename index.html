@@ -18,167 +18,325 @@ button.primary{background:#1764c0;color:white}button.danger{background:#fee2e2;c
 .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.toolbar input{max-width:420px}
 table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #e9edf3;font-size:13px}th{background:#f8fafc;color:#475569;font-size:12px}
 .tablewrap{overflow:auto}.pill{display:inline-block;border-radius:99px;padding:4px 8px;background:#dcfce7;color:#166534;font-size:11px}.off{background:#e2e8f0;color:#475569}
-#notice{margin:0 0 14px;padding:11px 13px;border-radius:8px;display:none;font-size:13px}#notice.ok{display:block;background:#dcfce7;color:#166534}#notice.err{display:block;background:#fee2e2;color:#991b1b}
+#notice{margin:0 0 14px;padding:11px 13px;border-radius:8px;display:none;font-size:13px}
+#notice.ok{display:block;background:#dcfce7;color:#166534}
+#notice.err{display:block;background:#fee2e2;color:#991b1b}
 #app{display:none}.login{max-width:420px;margin:8vh auto}.login input{margin-bottom:12px}.right{display:flex;gap:8px;align-items:center}
+.login form label{margin-top:10px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.top{padding:16px}.toolbar{align-items:stretch;flex-direction:column}.toolbar input{max-width:none}}
 @media(max-width:480px){.grid{grid-template-columns:1fr}.panel{padding:14px}main{margin:14px auto}.top h1{font-size:17px}}
 </style>
 </head>
 <body>
-<header class="top"><div><h1>RETAIL MANAGEMENT SYSTEM</h1><p>Master Barang · Database Terpusat</p></div><div class="right"><span id="who" class="muted" style="color:#dbeafe"></span><button id="logout" style="display:none">Keluar</button></div></header>
+<header class="top">
+  <div><h1>RETAIL MANAGEMENT SYSTEM</h1><p>Master Barang · Database Terpusat</p></div>
+  <div class="right"><span id="who" class="muted" style="color:#dbeafe"></span><button id="logout" style="display:none">Keluar</button></div>
+</header>
 <main>
-<section id="login" class="panel login">
-<h2>Masuk ke RMS</h2>
-<p class="muted">Gunakan akun pengguna Supabase yang sudah dibuat oleh administrator.</p>
-<label>Email</label><input id="email" type="email" autocomplete="username" placeholder="admin@toko.com">
-<label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Password">
-<div class="actions"><button class="primary" id="loginBtn">Masuk</button></div>
-</section>
-<section id="app">
-<div id="notice"></div>
-<section class="panel">
-<h2 id="formTitle">Tambah Barang Baru</h2>
-<form id="productForm">
-<input type="hidden" id="productId">
-<div class="grid">
-<div><label>SKU *</label><input id="sku" required maxlength="80" placeholder="GOTO-001"></div>
-<div><label>Barcode</label><input id="barcode" maxlength="120" placeholder="Scan atau ketik barcode"></div>
-<div><label>Nama Barang *</label><input id="name" required maxlength="200" placeholder="Nama produk"></div>
-<div><label>Kategori</label><select id="category"></select></div>
-<div><label>Satuan</label><select id="unit"></select></div>
-<div><label>Harga Beli (Rp)</label><input id="purchase" type="number" min="0" step="0.01" value="0"></div>
-<div><label>Harga Jual (Rp)</label><input id="selling" type="number" min="0" step="0.01" value="0"></div>
-<div><label>Stok Minimum</label><input id="minimum" type="number" min="0" step="0.001" value="0"></div>
-</div>
-<div class="actions">
-<button class="primary" type="submit" id="saveBtn">Simpan Barang</button>
-<button type="button" id="resetBtn">Kosongkan Form</button>
-</div>
-<p class="muted">SKU wajib unik. Barcode opsional, tetapi jika diisi harus unik. Produk yang tidak digunakan sebaiknya dinonaktifkan, bukan dihapus.</p>
-</form>
-</section>
-<section class="panel">
-<div class="toolbar"><div><h2 style="margin-bottom:4px">Daftar Master Barang</h2><span class="muted" id="count">Memuat data…</span></div><div class="right"><input id="search" placeholder="Cari SKU, barcode, atau nama…"><button id="refreshBtn">Muat ulang</button></div></div>
-<div class="tablewrap"><table><thead><tr><th>SKU</th><th>Barcode</th><th>Nama Barang</th><th>Kategori</th><th>Harga Jual</th><th>Stok Min.</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="rows"><tr><td colspan="8">Belum ada data.</td></tr></tbody></table></div>
-</section>
-</section>
+  <!-- Notice dipindah ke luar #app agar pesan login error tetap terlihat -->
+  <div id="notice"></div>
+
+  <section id="login" class="panel login">
+    <h2>Masuk ke RMS</h2>
+    <p class="muted">Gunakan akun pengguna Supabase yang sudah dibuat oleh administrator.</p>
+    <form id="loginForm">
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="admin@toko.com" required>
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+      <div class="actions"><button class="primary" type="submit" id="loginBtn">Masuk</button></div>
+    </form>
+  </section>
+
+  <section id="app">
+    <section class="panel">
+      <h2 id="formTitle">Tambah Barang Baru</h2>
+      <form id="productForm">
+        <input type="hidden" id="productId">
+        <div class="grid">
+          <div><label>SKU *</label><input id="sku" required maxlength="80" placeholder="GOTO-001"></div>
+          <div><label>Barcode</label><input id="barcode" maxlength="120" placeholder="Scan atau ketik barcode"></div>
+          <div><label>Nama Barang *</label><input id="name" required maxlength="200" placeholder="Nama produk"></div>
+          <div><label>Kategori</label><select id="category"></select></div>
+          <div><label>Satuan</label><select id="unit"></select></div>
+          <div><label>Harga Beli (Rp)</label><input id="purchase" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>Harga Jual (Rp)</label><input id="selling" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>Stok Minimum</label><input id="minimum" type="number" min="0" step="0.001" value="0"></div>
+        </div>
+        <div class="actions">
+          <button class="primary" type="submit" id="saveBtn">Simpan Barang</button>
+          <button type="button" id="resetBtn">Kosongkan Form</button>
+        </div>
+        <p class="muted">SKU wajib unik. Barcode opsional, tetapi jika diisi harus unik. Produk yang tidak digunakan sebaiknya dinonaktifkan, bukan dihapus.</p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div><h2 style="margin-bottom:4px">Daftar Master Barang</h2><span class="muted" id="count">Memuat data…</span></div>
+        <div class="right"><input id="search" placeholder="Cari SKU, barcode, atau nama…"><button id="refreshBtn">Muat ulang</button></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>SKU</th><th>Barcode</th><th>Nama Barang</th><th>Kategori</th><th>Harga Jual</th><th>Stok Min.</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="8">Belum ada data.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
 </main>
 <script>
 /*
   KONFIGURASI:
-  Ganti dua nilai di bawah dari Supabase > Project Settings > API.
-  Gunakan Project URL dan anon/public key saja.
-  JANGAN masukkan service_role key atau database password ke file browser.
+  SUPABASE_URL HARUS berupa Project URL saja (tanpa /rest/v1/).
+  Gunakan anon/public key, JANGAN service_role key.
 */
-const SUPABASE_URL = "https://dlesiyjeftpvftutwtmb.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://dlesiyjeftpvftutwtmb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXNpeWplZnRwdmZ0dXR3dG1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDkxOTgsImV4cCI6MjEwOTE4NTE5OH0.X-meJuvvtdKRRjRMXr8Q7amuSZh0cHcA6CQdD_y3CK0";
+
 const configured = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
-const client = configured ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY) : null;
+const client = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
 let products = [], categories = [], units = [];
 
 const $ = id => document.getElementById(id);
-function notify(message,type="ok"){const n=$("notice");n.textContent=message;n.className=type;n.style.display="block";window.scrollTo({top:0,behavior:"smooth"});}
-function rupiah(v){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(v||0));}
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function showApp(user){$("login").style.display="none";$("app").style.display="block";$("logout").style.display="inline-block";$("who").textContent=user.email||"";}
-function resetForm(){$("productForm").reset();$("productId").value="";$("purchase").value=0;$("selling").value=0;$("minimum").value=0;$("formTitle").textContent="Tambah Barang Baru";$("saveBtn").textContent="Simpan Barang";}
-async function loadLookups(){
- const [c,u]=await Promise.all([
-  client.from("categories").select("id,name").eq("is_active",true).order("name"),
-  client.from("units").select("id,name").order("name")
- ]);
- if(c.error) throw c.error;if(u.error) throw u.error;
- categories=c.data||[];units=u.data||[];
- $("category").innerHTML='<option value="">Tanpa kategori</option>'+categories.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
- $("unit").innerHTML='<option value="">Pilih satuan</option>'+units.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
+
+function notify(message, type = "ok") {
+  const n = $("notice");
+  n.textContent = message;
+  n.className = type;
+  n.style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
-async function loadProducts(){
- $("rows").innerHTML='<tr><td colspan="8">Memuat…</td></tr>';
- const [p,b]=await Promise.all([
-  client.from("products").select("id,sku,name,category_id,unit_id,purchase_price,selling_price,min_stock,is_active,created_at").order("created_at",{ascending:false}).limit(1000),
-  client.from("product_barcodes").select("product_id,barcode")
- ]);
- if(p.error)throw p.error;if(b.error)throw b.error;
- const barcodeMap={};(b.data||[]).forEach(x=>barcodeMap[x.product_id]=x.barcode);
- products=(p.data||[]).map(x=>({...x,barcode:barcodeMap[x.id]||""}));
- renderProducts();
+
+function rupiah(v) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(v || 0));
 }
-function renderProducts(){
- const q=$("search").value.trim().toLowerCase();
- const filtered=products.filter(p=>[p.sku,p.name,p.barcode].some(v=>String(v||"").toLowerCase().includes(q)));
- $("count").textContent=`Menampilkan ${filtered.length} dari ${products.length} barang`;
- $("rows").innerHTML=filtered.length?filtered.map(p=>`<tr>
- <td><b>${esc(p.sku)}</b></td><td>${esc(p.barcode||"—")}</td><td>${esc(p.name)}</td>
- <td>${esc(categories.find(c=>c.id===p.category_id)?.name||"—")}</td>
- <td>${rupiah(p.selling_price)}</td><td>${esc(p.min_stock)}</td>
- <td><span class="pill ${p.is_active?"":"off"}">${p.is_active?"Aktif":"Nonaktif"}</span></td>
- <td><button data-edit="${p.id}">Edit</button> <button class="${p.is_active?"danger":""}" data-toggle="${p.id}">${p.is_active?"Nonaktifkan":"Aktifkan"}</button></td>
- </tr>`).join(""):'<tr><td colspan="8">Barang tidak ditemukan.</td></tr>';
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-async function saveProduct(e){
- e.preventDefault();$("saveBtn").disabled=true;
- try{
-  const id=$("productId").value||null;
-  const payload={sku:$("sku").value.trim(),name:$("name").value.trim(),category_id:$("category").value||null,unit_id:$("unit").value||null,purchase_price:Number($("purchase").value||0),selling_price:Number($("selling").value||0),min_stock:Number($("minimum").value||0)};
-  if(!payload.sku||!payload.name)throw new Error("SKU dan nama barang wajib diisi.");
-  let result;
-  if(id) result=await client.from("products").update(payload).eq("id",id).select().single();
-  else result=await client.from("products").insert(payload).select().single();
-  if(result.error)throw result.error;
-  const productId=result.data.id, barcode=$("barcode").value.trim();
-  const old=await client.from("product_barcodes").select("id").eq("product_id",productId);
-  if(old.error)throw old.error;
-  if(barcode){
-    if(old.data.length){
-      const upd=await client.from("product_barcodes").update({barcode}).eq("product_id",productId);
-      if(upd.error)throw upd.error;
-    }else{
-      const ins=await client.from("product_barcodes").insert({product_id:productId,barcode});
-      if(ins.error)throw ins.error;
+
+function showApp(user) {
+  $("login").style.display = "none";
+  $("app").style.display = "block";
+  $("logout").style.display = "inline-block";
+  $("who").textContent = user.email || "";
+}
+
+function resetForm() {
+  $("productForm").reset();
+  $("productId").value = "";
+  $("purchase").value = 0;
+  $("selling").value = 0;
+  $("minimum").value = 0;
+  $("formTitle").textContent = "Tambah Barang Baru";
+  $("saveBtn").textContent = "Simpan Barang";
+}
+
+async function loadLookups() {
+  const [c, u] = await Promise.all([
+    client.from("categories").select("id,name").eq("is_active", true).order("name"),
+    client.from("units").select("id,name").order("name")
+  ]);
+  if (c.error) throw c.error;
+  if (u.error) throw u.error;
+  categories = c.data || [];
+  units = u.data || [];
+  $("category").innerHTML = '<option value="">Tanpa kategori</option>' + categories.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+  $("unit").innerHTML = '<option value="">Pilih satuan</option>' + units.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+}
+
+async function loadProducts() {
+  $("rows").innerHTML = '<tr><td colspan="8">Memuat…</td></tr>';
+  const [p, b] = await Promise.all([
+    client.from("products").select("id,sku,name,category_id,unit_id,purchase_price,selling_price,min_stock,is_active,created_at").order("created_at", { ascending: false }).limit(1000),
+    client.from("product_barcodes").select("product_id,barcode")
+  ]);
+  if (p.error) throw p.error;
+  if (b.error) throw b.error;
+  const barcodeMap = {};
+  (b.data || []).forEach(x => barcodeMap[x.product_id] = x.barcode);
+  products = (p.data || []).map(x => ({ ...x, barcode: barcodeMap[x.id] || "" }));
+  renderProducts();
+}
+
+function renderProducts() {
+  const q = $("search").value.trim().toLowerCase();
+  const filtered = products.filter(p => [p.sku, p.name, p.barcode].some(v => String(v || "").toLowerCase().includes(q)));
+  $("count").textContent = `Menampilkan ${filtered.length} dari ${products.length} barang`;
+  $("rows").innerHTML = filtered.length
+    ? filtered.map(p => `<tr>
+        <td><b>${esc(p.sku)}</b></td>
+        <td>${esc(p.barcode || "—")}</td>
+        <td>${esc(p.name)}</td>
+        <td>${esc(categories.find(c => c.id === p.category_id)?.name || "—")}</td>
+        <td>${rupiah(p.selling_price)}</td>
+        <td>${esc(p.min_stock)}</td>
+        <td><span class="pill ${p.is_active ? "" : "off"}">${p.is_active ? "Aktif" : "Nonaktif"}</span></td>
+        <td>
+          <button data-edit="${p.id}">Edit</button>
+          <button class="${p.is_active ? "danger" : ""}" data-toggle="${p.id}">${p.is_active ? "Nonaktifkan" : "Aktifkan"}</button>
+        </td>
+      </tr>`).join("")
+    : '<tr><td colspan="8">Barang tidak ditemukan.</td></tr>';
+}
+
+async function saveProduct(e) {
+  e.preventDefault();
+  $("saveBtn").disabled = true;
+  try {
+    const id = $("productId").value || null;
+    const payload = {
+      sku: $("sku").value.trim(),
+      name: $("name").value.trim(),
+      category_id: $("category").value || null,
+      unit_id: $("unit").value || null,
+      purchase_price: Number($("purchase").value || 0),
+      selling_price: Number($("selling").value || 0),
+      min_stock: Number($("minimum").value || 0)
+    };
+    if (!payload.sku || !payload.name) throw new Error("SKU dan nama barang wajib diisi.");
+
+    let result;
+    if (id) result = await client.from("products").update(payload).eq("id", id).select().single();
+    else result = await client.from("products").insert(payload).select().single();
+    if (result.error) throw result.error;
+
+    const productId = result.data.id;
+    const barcode = $("barcode").value.trim();
+    const old = await client.from("product_barcodes").select("id").eq("product_id", productId);
+    if (old.error) throw old.error;
+
+    if (barcode) {
+      if (old.data.length) {
+        const upd = await client.from("product_barcodes").update({ barcode }).eq("product_id", productId);
+        if (upd.error) throw upd.error;
+      } else {
+        const ins = await client.from("product_barcodes").insert({ product_id: productId, barcode });
+        if (ins.error) throw ins.error;
+      }
+    } else if (old.data.length) {
+      const del = await client.from("product_barcodes").delete().eq("product_id", productId);
+      if (del.error) throw del.error;
     }
-  }else if(old.data.length){
-    const del=await client.from("product_barcodes").delete().eq("product_id",productId);
-    if(del.error)throw del.error;
+
+    notify(id ? "Data barang berhasil diperbarui." : "Barang berhasil ditambahkan.");
+    resetForm();
+    await loadProducts();
+  } catch (err) {
+    notify(err.message || "Gagal menyimpan data.", "err");
+  } finally {
+    $("saveBtn").disabled = false;
   }
-  notify(id?"Data barang berhasil diperbarui.":"Barang berhasil ditambahkan.");
-  resetForm();await loadProducts();
- }catch(err){notify(err.message||"Gagal menyimpan data.","err");}
- finally{$("saveBtn").disabled=false;}
 }
-function editProduct(id){
- const p=products.find(x=>x.id===id);if(!p)return;
- $("productId").value=p.id;$("sku").value=p.sku;$("barcode").value=p.barcode;$("name").value=p.name;
- $("category").value=p.category_id||"";$("unit").value=p.unit_id||"";
- $("purchase").value=p.purchase_price;$("selling").value=p.selling_price;$("minimum").value=p.min_stock;
- $("formTitle").textContent="Edit Barang";$("saveBtn").textContent="Simpan Perubahan";
- window.scrollTo({top:0,behavior:"smooth"});
+
+function editProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  $("productId").value = p.id;
+  $("sku").value = p.sku;
+  $("barcode").value = p.barcode;
+  $("name").value = p.name;
+  $("category").value = p.category_id || "";
+  $("unit").value = p.unit_id || "";
+  $("purchase").value = p.purchase_price;
+  $("selling").value = p.selling_price;
+  $("minimum").value = p.min_stock;
+  $("formTitle").textContent = "Edit Barang";
+  $("saveBtn").textContent = "Simpan Perubahan";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
-async function toggleProduct(id){
- const p=products.find(x=>x.id===id);if(!p)return;
- const action=p.is_active?"menonaktifkan":"mengaktifkan";
- if(!confirm(`Yakin ingin ${action} ${p.name}?`))return;
- const r=await client.from("products").update({is_active:!p.is_active}).eq("id",id);
- if(r.error){notify(r.error.message,"err");return;}
- notify(`Status ${p.sku} berhasil diperbarui.`);await loadProducts();
+
+async function toggleProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const action = p.is_active ? "menonaktifkan" : "mengaktifkan";
+  if (!confirm(`Yakin ingin ${action} ${p.name}?`)) return;
+  const r = await client.from("products").update({ is_active: !p.is_active }).eq("id", id);
+  if (r.error) { notify(r.error.message, "err"); return; }
+  notify(`Status ${p.sku} berhasil diperbarui.`);
+  await loadProducts();
 }
-async function init(){
- if(!configured){notify("Konfigurasi Supabase belum diisi. Isi Project URL dan anon/public key pada bagian konfigurasi file HTML.","err");return;}
- const {data:{session}}=await client.auth.getSession();
- if(session){showApp(session.user);try{await loadLookups();await loadProducts();}catch(e){notify(e.message,"err");}}
- client.auth.onAuthStateChange((_event,session)=>{if(session){showApp(session.user);loadLookups().then(loadProducts).catch(e=>notify(e.message,"err"));}else{$("app").style.display="none";$("login").style.display="block";$("logout").style.display="none";$("who").textContent="";}});
+
+async function init() {
+  if (!configured) {
+    notify("Konfigurasi Supabase belum diisi. Periksa SUPABASE_URL dan SUPABASE_ANON_KEY.", "err");
+    return;
+  }
+  try {
+    const { data: { session } } = await client.auth.getSession();
+    if (session) {
+      showApp(session.user);
+      await loadLookups();
+      await loadProducts();
+    }
+  } catch (e) {
+    notify(e.message || "Gagal memuat data awal.", "err");
+  }
+
+  client.auth.onAuthStateChange(async (_event, session) => {
+    if (session) {
+      showApp(session.user);
+      try {
+        await loadLookups();
+        await loadProducts();
+      } catch (e) {
+        notify(e.message || "Gagal memuat data.", "err");
+      }
+    } else {
+      $("app").style.display = "none";
+      $("login").style.display = "block";
+      $("logout").style.display = "none";
+      $("who").textContent = "";
+    }
+  });
 }
-$("loginBtn").addEventListener("click",async()=>{
- if(!configured){notify("Isi konfigurasi Supabase terlebih dahulu.","err");return;}
- $("loginBtn").disabled=true;
- const {error}=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
- $("loginBtn").disabled=false;if(error)notify(error.message,"err");
+
+// ====== Event Handlers ======
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!configured) {
+    notify("Isi konfigurasi Supabase terlebih dahulu.", "err");
+    return;
+  }
+  const email = $("email").value.trim();
+  const password = $("password").value;
+  if (!email || !password) {
+    notify("Email dan password wajib diisi.", "err");
+    return;
+  }
+  $("loginBtn").disabled = true;
+  $("loginBtn").textContent = "Memproses…";
+  try {
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    notify("Berhasil masuk. Memuat data…", "ok");
+    $("password").value = "";
+  } catch (err) {
+    notify(err.message || "Gagal masuk. Periksa email/password.", "err");
+  } finally {
+    $("loginBtn").disabled = false;
+    $("loginBtn").textContent = "Masuk";
+  }
 });
-$("logout").addEventListener("click",async()=>{await client.auth.signOut();});
-$("productForm").addEventListener("submit",saveProduct);
-$("resetBtn").addEventListener("click",resetForm);
-$("refreshBtn").addEventListener("click",()=>loadProducts().catch(e=>notify(e.message,"err")));
-$("search").addEventListener("input",renderProducts);
-$("rows").addEventListener("click",e=>{const edit=e.target.dataset.edit,toggle=e.target.dataset.toggle;if(edit)editProduct(edit);if(toggle)toggleProduct(toggle);});
+
+$("logout").addEventListener("click", async () => {
+  await client.auth.signOut();
+  notify("Anda telah keluar.", "ok");
+});
+
+$("productForm").addEventListener("submit", saveProduct);
+$("resetBtn").addEventListener("click", resetForm);
+$("refreshBtn").addEventListener("click", () => loadProducts().catch(e => notify(e.message, "err")));
+$("search").addEventListener("input", renderProducts);
+$("rows").addEventListener("click", e => {
+  const edit = e.target.dataset.edit;
+  const toggle = e.target.dataset.toggle;
+  if (edit) editProduct(edit);
+  if (toggle) toggleProduct(toggle);
+});
+
 init();
 </script>
 </body>
