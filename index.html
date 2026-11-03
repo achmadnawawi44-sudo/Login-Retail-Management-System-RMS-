@@ -25,6 +25,64 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 .login form label{margin-top:10px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.top{padding:16px}.toolbar{align-items:stretch;flex-direction:column}.toolbar input{max-width:none}}
 @media(max-width:480px){.grid{grid-template-columns:1fr}.panel{padding:14px}main{margin:14px auto}.top h1{font-size:17px}}
+
+/* ===== MENU UTAMA RMS ===== */
+#dashboard { display:none; }
+#masterPage { display:none; }
+
+.menu-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+}
+
+.menu-card {
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:22px 14px;
+  text-align:center;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.menu-card:hover {
+  border-color:#1764c0;
+  transform:translateY(-2px);
+  box-shadow:0 5px 16px #1e293b12;
+}
+
+.menu-card h3 {
+  margin:10px 0 5px;
+  font-size:15px;
+}
+
+.menu-card p {
+  margin:0;
+  font-size:12px;
+  color:#64748b;
+}
+
+.menu-icon {
+  font-size:30px;
+}
+
+.menu-card.disabled {
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.back-button {
+  margin-bottom:14px;
+}
+
+@media(max-width:700px) {
+  .menu-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media(max-width:400px) {
+  .menu-grid { grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -49,40 +107,109 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
   </section>
 
   <section id="app">
-    <section class="panel">
-      <h2 id="formTitle">Tambah Barang Baru</h2>
-      <form id="productForm">
-        <input type="hidden" id="productId">
-        <div class="grid">
-          <div><label>SKU *</label><input id="sku" required maxlength="80" placeholder="GOTO-001"></div>
-          <div><label>Barcode</label><input id="barcode" maxlength="120" placeholder="Scan atau ketik barcode"></div>
-          <div><label>Nama Barang *</label><input id="name" required maxlength="200" placeholder="Nama produk"></div>
-          <div><label>Kategori</label><select id="category"></select></div>
-          <div><label>Satuan</label><select id="unit"></select></div>
-          <div><label>Harga Beli (Rp)</label><input id="purchase" type="number" min="0" step="0.01" value="0"></div>
-          <div><label>Harga Jual (Rp)</label><input id="selling" type="number" min="0" step="0.01" value="0"></div>
-          <div><label>Stok Minimum</label><input id="minimum" type="number" min="0" step="0.001" value="0"></div>
+    <!-- MENU UTAMA RMS -->
+    <section id="dashboard">
+      <div class="panel">
+        <h2>Menu Utama RMS</h2>
+        <p class="muted">
+          Selamat datang. Silakan pilih aplikasi yang ingin digunakan.
+        </p>
+
+        <div class="menu-grid">
+
+          <button class="menu-card" onclick="openMaster()">
+            <div class="menu-icon">📦</div>
+            <h3>Master Barang</h3>
+            <p>Data produk, SKU dan barcode</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Barang Datang')">
+            <div class="menu-icon">🚚</div>
+            <h3>Barang Datang</h3>
+            <p>Penerimaan barang dan tambah stok</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('POS Kasir')">
+            <div class="menu-icon">🛒</div>
+            <h3>POS Kasir</h3>
+            <p>Transaksi penjualan dan struk</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Cek Harga')">
+            <div class="menu-icon">🔎</div>
+            <h3>Cek Harga</h3>
+            <p>Cari produk melalui barcode</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Return')">
+            <div class="menu-icon">↩️</div>
+            <h3>Return</h3>
+            <p>Pencatatan barang retur</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Barang Rusak')">
+            <div class="menu-icon">📦</div>
+            <h3>Barang Rusak</h3>
+            <p>Pencatatan barang rusak</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Stok Opname')">
+            <div class="menu-icon">📋</div>
+            <h3>Stok Opname</h3>
+            <p>Perhitungan stok fisik</p>
+          </button>
+
+          <button class="menu-card disabled" onclick="comingSoon('Laporan')">
+            <div class="menu-icon">📊</div>
+            <h3>Laporan</h3>
+            <p>Riwayat stok dan penjualan</p>
+          </button>
+
         </div>
-        <div class="actions">
-          <button class="primary" type="submit" id="saveBtn">Simpan Barang</button>
-          <button type="button" id="resetBtn">Kosongkan Form</button>
-        </div>
-        <p class="muted">SKU wajib unik. Barcode opsional, tetapi jika diisi harus unik. Produk yang tidak digunakan sebaiknya dinonaktifkan, bukan dihapus.</p>
-      </form>
+      </div>
     </section>
 
-    <section class="panel">
-      <div class="toolbar">
-        <div><h2 style="margin-bottom:4px">Daftar Master Barang</h2><span class="muted" id="count">Memuat data…</span></div>
-        <div class="right"><input id="search" placeholder="Cari SKU, barcode, atau nama…"><button id="refreshBtn">Muat ulang</button></div>
-      </div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>SKU</th><th>Barcode</th><th>Nama Barang</th><th>Kategori</th><th>Harga Jual</th><th>Stok Min.</th><th>Status</th><th>Aksi</th></tr></thead>
-          <tbody id="rows"><tr><td colspan="8">Belum ada data.</td></tr></tbody>
-        </table>
-      </div>
-    </section>
+    <!-- HALAMAN MASTER BARANG -->
+    <div id="masterPage">
+      <button class="back-button" onclick="backToMenu()">
+        ← Kembali ke Menu Utama
+      </button>
+
+      <section class="panel">
+        <h2 id="formTitle">Tambah Barang Baru</h2>
+        <form id="productForm">
+          <input type="hidden" id="productId">
+          <div class="grid">
+            <div><label>SKU *</label><input id="sku" required maxlength="80" placeholder="GOTO-001"></div>
+            <div><label>Barcode</label><input id="barcode" maxlength="120" placeholder="Scan atau ketik barcode"></div>
+            <div><label>Nama Barang *</label><input id="name" required maxlength="200" placeholder="Nama produk"></div>
+            <div><label>Kategori</label><select id="category"></select></div>
+            <div><label>Satuan</label><select id="unit"></select></div>
+            <div><label>Harga Beli (Rp)</label><input id="purchase" type="number" min="0" step="0.01" value="0"></div>
+            <div><label>Harga Jual (Rp)</label><input id="selling" type="number" min="0" step="0.01" value="0"></div>
+            <div><label>Stok Minimum</label><input id="minimum" type="number" min="0" step="0.001" value="0"></div>
+          </div>
+          <div class="actions">
+            <button class="primary" type="submit" id="saveBtn">Simpan Barang</button>
+            <button type="button" id="resetBtn">Kosongkan Form</button>
+          </div>
+          <p class="muted">SKU wajib unik. Barcode opsional, tetapi jika diisi harus unik. Produk yang tidak digunakan sebaiknya dinonaktifkan, bukan dihapus.</p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <div><h2 style="margin-bottom:4px">Daftar Master Barang</h2><span class="muted" id="count">Memuat data…</span></div>
+          <div class="right"><input id="search" placeholder="Cari SKU, barcode, atau nama…"><button id="refreshBtn">Muat ulang</button></div>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>SKU</th><th>Barcode</th><th>Nama Barang</th><th>Kategori</th><th>Harga Jual</th><th>Stok Min.</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="8">Belum ada data.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </section>
 </main>
 <script>
@@ -120,8 +247,26 @@ function esc(v) {
 function showApp(user) {
   $("login").style.display = "none";
   $("app").style.display = "block";
+  $("dashboard").style.display = "block";
+  $("masterPage").style.display = "none";
   $("logout").style.display = "inline-block";
   $("who").textContent = user.email || "";
+}
+
+function openMaster() {
+  $("dashboard").style.display = "none";
+  $("masterPage").style.display = "block";
+  window.scrollTo(0, 0);
+}
+
+function backToMenu() {
+  $("masterPage").style.display = "none";
+  $("dashboard").style.display = "block";
+  window.scrollTo(0, 0);
+}
+
+function comingSoon(menu) {
+  notify("Menu " + menu + " akan dibuat pada tahap berikutnya.");
 }
 
 function resetForm() {
