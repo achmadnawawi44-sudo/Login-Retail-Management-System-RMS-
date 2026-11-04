@@ -11,8 +11,8 @@
 .top h1{font-size:20px;margin:0}.top p{margin:5px 0 0;color:#cbd5e1;font-size:13px}
 main{max-width:1200px;margin:24px auto;padding:0 16px}.panel{background:#fff;border:1px solid #e5eaf1;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 3px 12px #1e293b08}
 h2{font-size:17px;margin:0 0 14px}.muted{color:#64748b;font-size:13px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-label{display:block;font-size:12px;font-weight:650;color:#475569;margin-bottom:6px}input,select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit;min-width:0}
-input:focus,select:focus{outline:2px solid #93c5fd;border-color:#2563eb}
+label{display:block;font-size:12px;font-weight:650;color:#475569;margin-bottom:6px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid #93c5fd;border-color:#2563eb}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}button{border:0;border-radius:8px;padding:10px 14px;font-weight:650;cursor:pointer;background:#e2e8f0;color:#1e293b}
 button.primary{background:#1764c0;color:white}button.danger{background:#fee2e2;color:#991b1b}button:disabled{opacity:.5;cursor:not-allowed}
 .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.toolbar input{max-width:420px}
@@ -29,6 +29,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 /* ===== MENU UTAMA RMS ===== */
 #dashboard { display:none; }
 #masterPage { display:none; }
+#purchasePage { display:none; }
 
 .menu-grid {
   display:grid;
@@ -123,7 +124,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
             <p>Data produk, SKU dan barcode</p>
           </button>
 
-          <button class="menu-card disabled" onclick="comingSoon('Barang Datang')">
+          <button class="menu-card" onclick="openPurchase()">
             <div class="menu-icon">🚚</div>
             <h3>Barang Datang</h3>
             <p>Penerimaan barang dan tambah stok</p>
@@ -210,6 +211,113 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         </div>
       </section>
     </div>
+
+    <!-- ===== HALAMAN BARANG DATANG ===== -->
+    <section id="purchasePage">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <h2 style="margin:0;">Barang Datang</h2>
+        <button onclick="backPurchaseToMenu()">← Kembali ke Menu Utama</button>
+      </div>
+
+      <!-- Informasi Penerimaan -->
+      <div class="panel">
+        <h3 style="margin-top:0;">Informasi Penerimaan</h3>
+
+        <div class="grid">
+          <div>
+            <label>Lokasi Penerimaan *</label>
+            <select id="bdLocation">
+              <option value="">Memuat lokasi...</option>
+            </select>
+          </div>
+          <div>
+            <label>Supplier *</label>
+            <select id="bdSupplier">
+              <option value="">Memuat supplier...</option>
+            </select>
+          </div>
+          <div>
+            <label>No. Surat Jalan / Referensi</label>
+            <input id="bdReference" type="text" placeholder="Nomor surat jalan">
+          </div>
+          <div>
+            <label>Tanggal Diterima</label>
+            <input id="bdDate" type="date">
+          </div>
+          <div>
+            <label>Nama Pengirim</label>
+            <input id="bdSender" type="text" placeholder="Nama pengirim">
+          </div>
+          <div>
+            <label>Nama Penerima</label>
+            <input id="bdReceiver" type="text" placeholder="Nama penerima">
+          </div>
+          <div style="grid-column:1/-1;">
+            <label>Catatan</label>
+            <textarea id="bdNotes" placeholder="Catatan penerimaan barang" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Barang -->
+      <div class="panel">
+        <h3 style="margin-top:0;">Input Barang</h3>
+
+        <label>Scan Barcode / Input SKU</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <input id="bdBarcode" type="text"
+            placeholder="Scan barcode atau ketik SKU"
+            style="flex:1;min-width:200px;"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();bdFindProduct();}">
+          <button id="bdFindButton" class="primary" onclick="bdFindProduct()">Cari Barang</button>
+        </div>
+
+        <div id="bdProductInfo" style="margin:12px 0;color:#333;">
+          Belum ada barang dipilih.
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:0 0 120px;">
+            <label>Qty</label>
+            <input id="bdQty" type="number" min="0.001" step="any" placeholder="Qty">
+          </div>
+          <div style="flex:0 0 160px;">
+            <label>Harga Beli</label>
+            <input id="bdCost" type="number" min="0" step="any" placeholder="Harga beli">
+          </div>
+          <button id="bdAddButton" onclick="bdAddToCart()" disabled>Tambah Barang</button>
+        </div>
+
+        <div class="tablewrap" style="margin-top:18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU / Barang</th>
+                <th>Qty</th>
+                <th>Harga Beli</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="bdCartRows">
+              <tr><td colspan="4" style="padding:15px;text-align:center;">Belum ada barang.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Status & Simpan -->
+      <div class="panel">
+        <div id="bdStatus" style="margin-bottom:12px;">Dokumen belum dibuat.</div>
+
+        <div class="actions">
+          <button id="bdSaveButton" class="primary" onclick="bdSaveDraft()">Simpan Draft</button>
+          <button id="bdPostButton" onclick="bdPostDocument()" disabled>Posting Barang Datang</button>
+        </div>
+      </div>
+    </section>
+    <!-- ===== END HALAMAN BARANG DATANG ===== -->
+
   </section>
 </main>
 <script>
@@ -249,18 +357,21 @@ function showApp(user) {
   $("app").style.display = "block";
   $("dashboard").style.display = "block";
   $("masterPage").style.display = "none";
+  $("purchasePage").style.display = "none";
   $("logout").style.display = "inline-block";
   $("who").textContent = user.email || "";
 }
 
 function openMaster() {
   $("dashboard").style.display = "none";
+  $("purchasePage").style.display = "none";
   $("masterPage").style.display = "block";
   window.scrollTo(0, 0);
 }
 
 function backToMenu() {
   $("masterPage").style.display = "none";
+  $("purchasePage").style.display = "none";
   $("dashboard").style.display = "block";
   window.scrollTo(0, 0);
 }
@@ -480,6 +591,302 @@ $("rows").addEventListener("click", e => {
   const toggle = e.target.dataset.toggle;
   if (edit) editProduct(edit);
   if (toggle) toggleProduct(toggle);
+});
+
+
+// ======================================
+// MODUL BARANG DATANG - RMS
+// Memakai `client`, `$`, `notify` dari modul utama
+// ======================================
+
+let bdSelectedProduct = null;
+let bdCart = [];
+let bdCurrentDocumentId = null;
+let bdSavedProductIds = new Set();
+let bdIsSaved = false;
+
+async function openPurchase() {
+  $("dashboard").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("purchasePage").style.display = "block";
+  window.scrollTo(0, 0);
+
+  if (!client) {
+    notify("Koneksi database belum tersedia.", "err");
+    return;
+  }
+
+  if (!bdCurrentDocumentId) bdResetForm();
+
+  try {
+    await bdLoadLookups();
+  } catch (e) {
+    notify("Gagal memuat data awal Barang Datang: " + e.message, "err");
+  }
+}
+
+function backPurchaseToMenu() {
+  $("purchasePage").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("dashboard").style.display = "block";
+  window.scrollTo(0, 0);
+}
+
+function bdResetForm() {
+  bdSelectedProduct = null;
+  bdCart = [];
+  bdCurrentDocumentId = null;
+  bdSavedProductIds = new Set();
+  bdIsSaved = false;
+
+  ["bdReference","bdSender","bdReceiver","bdNotes",
+   "bdBarcode","bdQty","bdCost"].forEach(id => { $(id).value = ""; });
+
+  $("bdDate").value = new Date().toLocaleDateString("en-CA");
+
+  ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
+
+  $("bdProductInfo").textContent = "Belum ada barang dipilih.";
+  $("bdAddButton").disabled = true;
+  $("bdPostButton").disabled = true;
+  $("bdSaveButton").disabled = false;
+  $("bdSaveButton").textContent = "Simpan Draft";
+  $("bdStatus").textContent = "Dokumen belum dibuat.";
+
+  bdRenderCart();
+}
+
+async function bdLoadLookups() {
+  const locationSelect = $("bdLocation");
+  const supplierSelect = $("bdSupplier");
+  locationSelect.innerHTML = '<option value="">Memuat...</option>';
+  supplierSelect.innerHTML = '<option value="">Memuat...</option>';
+
+  const [locations, suppliers] = await Promise.all([
+    client.from("locations").select("id,code,name").eq("is_active", true).order("name"),
+    client.from("suppliers").select("id,supplier_code,supplier_name").eq("is_active", true).order("supplier_name")
+  ]);
+
+  if (locations.error) throw locations.error;
+  if (suppliers.error) throw suppliers.error;
+
+  locationSelect.innerHTML = '<option value="">Pilih lokasi</option>' +
+    (locations.data || []).map(i =>
+      `<option value="${i.id}">${esc(i.code + " - " + i.name)}</option>`
+    ).join("");
+
+  supplierSelect.innerHTML = '<option value="">Pilih supplier</option>' +
+    (suppliers.data || []).map(i =>
+      `<option value="${i.id}">${esc(i.supplier_code + " - " + i.supplier_name)}</option>`
+    ).join("");
+}
+
+async function bdFindProduct() {
+  if (bdIsSaved) return;
+
+  const keyword = $("bdBarcode").value.trim();
+  if (!keyword) { notify("Masukkan barcode atau SKU terlebih dahulu.", "err"); return; }
+
+  const findButton = $("bdFindButton");
+  findButton.disabled = true;
+  findButton.textContent = "Mencari...";
+
+  try {
+    let product = null;
+
+    const skuResult = await client
+      .from("products")
+      .select("id,sku,name,purchase_price,selling_price,is_active")
+      .eq("sku", keyword).eq("is_active", true).maybeSingle();
+    if (skuResult.error) throw skuResult.error;
+    product = skuResult.data;
+
+    if (!product) {
+      const barcodeResult = await client
+        .from("product_barcodes").select("product_id")
+        .eq("barcode", keyword).maybeSingle();
+      if (barcodeResult.error) throw barcodeResult.error;
+
+      if (barcodeResult.data) {
+        const productResult = await client
+          .from("products")
+          .select("id,sku,name,purchase_price,selling_price,is_active")
+          .eq("id", barcodeResult.data.product_id)
+          .eq("is_active", true).maybeSingle();
+        if (productResult.error) throw productResult.error;
+        product = productResult.data;
+      }
+    }
+
+    if (!product) {
+      bdSelectedProduct = null;
+      $("bdAddButton").disabled = true;
+      $("bdProductInfo").textContent = "Barang tidak ditemukan di Master Barang.";
+      return;
+    }
+
+    bdSelectedProduct = product;
+    $("bdProductInfo").textContent = product.sku + " - " + product.name;
+    $("bdCost").value = product.purchase_price ?? 0;
+    $("bdAddButton").disabled = false;
+    $("bdQty").focus();
+  } catch (error) {
+    notify("Gagal mencari barang: " + error.message, "err");
+  } finally {
+    findButton.disabled = false;
+    findButton.textContent = "Cari Barang";
+  }
+}
+
+function bdAddToCart() {
+  if (bdIsSaved) return;
+  if (!bdSelectedProduct) { notify("Cari barang terlebih dahulu.", "err"); return; }
+
+  const qty = Number($("bdQty").value);
+  const cost = Number($("bdCost").value);
+
+  if (!Number.isFinite(qty) || qty <= 0) { notify("Qty harus lebih dari 0.", "err"); return; }
+  if (!Number.isFinite(cost) || cost < 0) { notify("Harga beli tidak boleh negatif.", "err"); return; }
+
+  const existing = bdCart.find(item => item.product_id === bdSelectedProduct.id);
+  if (existing) {
+    existing.qty += qty;
+    existing.unit_cost = cost;
+  } else {
+    bdCart.push({
+      product_id: bdSelectedProduct.id,
+      sku: bdSelectedProduct.sku,
+      name: bdSelectedProduct.name,
+      qty, unit_cost: cost
+    });
+  }
+
+  bdSelectedProduct = null;
+  $("bdBarcode").value = "";
+  $("bdQty").value = "";
+  $("bdCost").value = "";
+  $("bdAddButton").disabled = true;
+  $("bdProductInfo").textContent = "Barang berhasil ditambahkan.";
+  bdRenderCart();
+  $("bdBarcode").focus();
+}
+
+function bdRenderCart() {
+  const tbody = $("bdCartRows");
+  if (!bdCart.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;">Belum ada barang.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = bdCart.map((item, index) => `
+    <tr>
+      <td>${esc(item.sku)} - ${esc(item.name)}</td>
+      <td>${esc(item.qty)}</td>
+      <td>${Number(item.unit_cost).toLocaleString("id-ID")}</td>
+      <td><button data-bd-remove="${index}" ${bdIsSaved ? "disabled" : ""}>Hapus</button></td>
+    </tr>
+  `).join("");
+}
+
+async function bdSaveDraft() {
+  if (bdIsSaved) return;
+  if (!bdCart.length) { notify("Masukkan minimal satu barang.", "err"); return; }
+
+  const locationId = $("bdLocation").value;
+  const supplierId = $("bdSupplier").value;
+  if (!locationId || !supplierId) {
+    notify("Pilih lokasi dan supplier terlebih dahulu.", "err"); return;
+  }
+
+  const saveButton = $("bdSaveButton");
+  saveButton.disabled = true;
+  saveButton.textContent = "Menyimpan...";
+
+  try {
+    if (!bdCurrentDocumentId) {
+      const result = await client.rpc("rms_create_purchase_document", {
+        p_location_id: locationId,
+        p_supplier_id: supplierId,
+        p_reference_no: $("bdReference").value.trim() || null,
+        p_notes: $("bdNotes").value.trim() || null,
+        p_sender_name: $("bdSender").value.trim() || null,
+        p_receiver_name: $("bdReceiver").value.trim() || null,
+        p_received_at: $("bdDate").value
+      });
+      if (result.error) throw result.error;
+      bdCurrentDocumentId = result.data;
+    }
+
+    for (const item of bdCart) {
+      if (bdSavedProductIds.has(item.product_id)) continue;
+      const result = await client.rpc("rms_add_stock_document_item", {
+        p_document_id: bdCurrentDocumentId,
+        p_product_id: item.product_id,
+        p_qty: item.qty,
+        p_unit_cost: item.unit_cost,
+        p_unit_price: 0,
+        p_notes: null
+      });
+      if (result.error) throw result.error;
+      bdSavedProductIds.add(item.product_id);
+    }
+
+    bdIsSaved = true;
+    $("bdStatus").textContent = "Draft tersimpan. Nomor dokumen: " + bdCurrentDocumentId;
+    $("bdPostButton").disabled = false;
+
+    ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = true; });
+    $("bdAddButton").disabled = true;
+    bdRenderCart();
+
+    notify("Draft Barang Datang berhasil disimpan.", "ok");
+  } catch (error) {
+    $("bdStatus").textContent =
+      "Draft belum lengkap. Dokumen: " + (bdCurrentDocumentId || "belum dibuat") + ".";
+    notify(
+      "Gagal menyimpan draft: " + error.message +
+      (bdCurrentDocumentId ? " (ID: " + bdCurrentDocumentId + ")" : ""),
+      "err"
+    );
+  } finally {
+    saveButton.disabled = bdIsSaved;
+    saveButton.textContent = bdIsSaved ? "Draft Tersimpan" : "Simpan Draft";
+  }
+}
+
+async function bdPostDocument() {
+  if (!bdCurrentDocumentId || !bdIsSaved) {
+    notify("Simpan draft terlebih dahulu.", "err"); return;
+  }
+  if (!confirm("Posting Barang Datang sekarang?\nStok akan langsung bertambah.")) return;
+
+  const postButton = $("bdPostButton");
+  postButton.disabled = true;
+  postButton.textContent = "Memproses...";
+
+  try {
+    const result = await client.rpc("rms_post_stock_document", {
+      p_document_id: bdCurrentDocumentId
+    });
+    if (result.error) throw result.error;
+
+    notify(result.data || "Barang Datang berhasil diposting.", "ok");
+    bdResetForm();
+    await bdLoadLookups();
+  } catch (error) {
+    notify("Posting gagal: " + error.message, "err");
+    postButton.disabled = false;
+  } finally {
+    postButton.textContent = "Posting Barang Datang";
+  }
+}
+
+// Event delegation untuk tombol Hapus di keranjang
+document.getElementById("bdCartRows").addEventListener("click", e => {
+  const idx = e.target.dataset.bdRemove;
+  if (idx === undefined) return;
+  if (bdIsSaved) return;
+  bdCart.splice(Number(idx), 1);
+  bdRenderCart();
 });
 
 init();
