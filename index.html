@@ -204,8 +204,20 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         </div>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>SKU</th><th>Barcode</th><th>Nama Barang</th><th>Kategori</th><th>Harga Jual</th><th>Stok Min.</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="rows"><tr><td colspan="8">Belum ada data.</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Barcode</th>
+                <th>Nama Barang</th>
+                <th>Kategori</th>
+                <th>Harga Jual</th>
+                <th>Stok</th>
+                <th>Min. Stok</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="rows"><tr><td colspan="9">Belum ada data.</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -382,10 +394,6 @@ function showApp(user) {
   $("app").style.display = "block";
   $("logout").style.display = "inline-block";
   $("who").textContent = user.email || "";
-  // Tidak memaksa ke dashboard. Halaman yang aktif tetap dipertahankan.
-  if ($("dashboard").style.display === "" || $("dashboard").style.display === "block") {
-    // hanya inisialisasi awal
-  }
 }
 
 function openMaster() {
@@ -429,24 +437,65 @@ async function loadLookups() {
   $("unit").innerHTML = '<option value="">Pilih satuan</option>' + units.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
 }
 
+/* =========================================================
+   loadProducts() — v3: gabungkan stok dari stock_balances
+   ========================================================= */
 async function loadProducts() {
-  $("rows").innerHTML = '<tr><td colspan="8">Memuat…</td></tr>';
-  const [p, b] = await Promise.all([
-    client.from("products").select("id,sku,name,category_id,unit_id,purchase_price,selling_price,min_stock,is_active,created_at").order("created_at", { ascending: false }).limit(1000),
-    client.from("product_barcodes").select("product_id,barcode")
+  $("rows").innerHTML = '<tr><td colspan="9">Memuat…</td></tr>';
+
+  const [p, b, s] = await Promise.all([
+    client.from("products")
+      .select("id,sku,name,category_id,unit_id,purchase_price,selling_price,min_stock,is_active,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000),
+
+    client.from("product_barcodes")
+      .select("product_id,barcode"),
+
+    client.from("stock_balances")
+      .select("product_id,qty")
   ]);
+
   if (p.error) throw p.error;
   if (b.error) throw b.error;
+  if (s.error) throw s.error;
+
   const barcodeMap = {};
-  (b.data || []).forEach(x => barcodeMap[x.product_id] = x.barcode);
-  products = (p.data || []).map(x => ({ ...x, barcode: barcodeMap[x.id] || "" }));
+  (b.data || []).forEach(x => {
+    barcodeMap[x.product_id] = x.barcode;
+  });
+
+  // Gabungkan stok dari seluruh lokasi
+  const stockMap = {};
+  (s.data || []).forEach(x => {
+    stockMap[x.product_id] =
+      (stockMap[x.product_id] || 0) + Number(x.qty || 0);
+  });
+
+  products = (p.data || []).map(x => ({
+    ...x,
+    barcode: barcodeMap[x.id] || "",
+    stok: stockMap[x.id] || 0
+  }));
+
   renderProducts();
 }
 
+/* =========================================================
+   renderProducts() — v3: menampilkan kolom stok
+   ========================================================= */
 function renderProducts() {
   const q = $("search").value.trim().toLowerCase();
-  const filtered = products.filter(p => [p.sku, p.name, p.barcode].some(v => String(v || "").toLowerCase().includes(q)));
-  $("count").textContent = `Menampilkan ${filtered.length} dari ${products.length} barang`;
+
+  const filtered = products.filter(p =>
+    [p.sku, p.name, p.barcode].some(v =>
+      String(v || "").toLowerCase().includes(q)
+    )
+  );
+
+  $("count").textContent =
+    `Menampilkan ${filtered.length} dari ${products.length} barang`;
+
   $("rows").innerHTML = filtered.length
     ? filtered.map(p => `<tr>
         <td><b>${esc(p.sku)}</b></td>
@@ -454,14 +503,17 @@ function renderProducts() {
         <td>${esc(p.name)}</td>
         <td>${esc(categories.find(c => c.id === p.category_id)?.name || "—")}</td>
         <td>${rupiah(p.selling_price)}</td>
+        <td><b>${esc(p.stok)}</b></td>
         <td>${esc(p.min_stock)}</td>
         <td><span class="pill ${p.is_active ? "" : "off"}">${p.is_active ? "Aktif" : "Nonaktif"}</span></td>
         <td>
           <button data-edit="${p.id}">Edit</button>
-          <button class="${p.is_active ? "danger" : ""}" data-toggle="${p.id}">${p.is_active ? "Nonaktifkan" : "Aktifkan"}</button>
+          <button class="${p.is_active ? "danger" : ""}" data-toggle="${p.id}">
+            ${p.is_active ? "Nonaktifkan" : "Aktifkan"}
+          </button>
         </td>
       </tr>`).join("")
-    : '<tr><td colspan="8">Barang tidak ditemukan.</td></tr>';
+    : '<tr><td colspan="9">Barang tidak ditemukan.</td></tr>';
 }
 
 async function saveProduct(e) {
@@ -561,7 +613,6 @@ async function init() {
   client.auth.onAuthStateChange(async (_event, session) => {
     if (session) {
       // Jika sudah login, JANGAN reset halaman aktif.
-      // Hanya tampilkan app bila sebelumnya tersembunyi (login baru).
       const wasHidden = $("app").style.display === "none" || $("app").style.display === "";
       if (wasHidden) {
         showApp(session.user);
@@ -570,7 +621,6 @@ async function init() {
         $("who").textContent = session.user.email || "";
       }
       try {
-        // reload data tanpa mengubah halaman aktif
         await loadLookups();
         await loadProducts();
         if ($("purchasePage").style.display === "block") {
@@ -629,10 +679,7 @@ $("rows").addEventListener("click", e => {
 
 
 // ======================================
-// MODUL BARANG DATANG - RMS v2
-// - Edit draft
-// - Daftar draft surat jalan
-// - Tidak auto-redirect ke dashboard
+// MODUL BARANG DATANG - RMS v3
 // ======================================
 
 let bdSelectedProduct = null;
@@ -673,7 +720,6 @@ function bdStartNew() {
   $("bdCancelEditButton").style.display = "none";
   $("bdStatus").textContent = "Dokumen baru. Isi data lalu Simpan Draft.";
   notify("Form baru siap. Silakan isi penerimaan barang.", "ok");
-  // highlight daftar draft tidak ada yang aktif
   document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
 }
 
@@ -737,8 +783,6 @@ async function bdLoadDrafts() {
   tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>';
   $("bdDraftCount").textContent = "Memuat draft…";
 
-  // Ambil dokumen draft (belum posted) — sesuaikan nama tabel/kolom dengan skema Anda
-  // Asumsi: tabel stock_documents dengan kolom id, doc_number, status, received_at, reference_no, supplier_id, location_id
   const { data, error } = await client
     .from("stock_documents")
     .select("id,doc_number,status,received_at,reference_no,supplier_id,location_id,created_at")
@@ -782,7 +826,6 @@ async function bdLoadDraft(docId) {
   try {
     notify("Memuat draft…", "ok");
 
-    // Ambil header dokumen
     const { data: doc, error: docErr } = await client
       .from("stock_documents")
       .select("*")
@@ -795,14 +838,12 @@ async function bdLoadDraft(docId) {
       return;
     }
 
-    // Ambil item
     const { data: items, error: itemErr } = await client
       .from("stock_document_items")
       .select("id,product_id,qty,unit_cost,unit_price,notes")
       .eq("document_id", docId);
     if (itemErr) throw itemErr;
 
-    // Ambil info produk untuk tiap item
     const productIds = (items || []).map(i => i.product_id);
     let productMap = {};
     if (productIds.length) {
@@ -814,7 +855,6 @@ async function bdLoadDraft(docId) {
       (prods || []).forEach(p => productMap[p.id] = p);
     }
 
-    // Set state
     bdCurrentDocumentId = doc.id;
     bdIsSaved = true;
     bdIsPosted = false;
@@ -828,7 +868,6 @@ async function bdLoadDraft(docId) {
       unit_cost: Number(i.unit_cost)
     }));
 
-    // Isi form
     $("bdLocation").value = doc.location_id || "";
     $("bdSupplier").value = doc.supplier_id || "";
     $("bdReference").value = doc.reference_no || "";
@@ -837,7 +876,6 @@ async function bdLoadDraft(docId) {
     $("bdReceiver").value = doc.receiver_name || "";
     $("bdNotes").value = doc.notes || "";
 
-    // Status UI: sudah tersimpan, bisa tambah item baru, bisa posting
     $("bdFormTitle").textContent = "Informasi Penerimaan — Edit Draft " + (doc.doc_number || doc.id);
     $("bdStatus").textContent = "Draft aktif: " + (doc.doc_number || doc.id) + " (bisa diedit)";
     $("bdSaveButton").disabled = false;
@@ -845,12 +883,10 @@ async function bdLoadDraft(docId) {
     $("bdPostButton").disabled = false;
     $("bdCancelEditButton").style.display = "inline-block";
 
-    // Input barang AKTIF (bisa tambah item baru)
     ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
     $("bdAddButton").disabled = true;
 
     bdRenderCart();
-    // highlight baris aktif
     document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
     const row = document.querySelector(`#bdDraftRows tr[data-draft-id="${docId}"]`);
     if (row) row.classList.add("active");
@@ -981,7 +1017,6 @@ async function bdSaveDraft() {
   saveButton.textContent = "Menyimpan...";
 
   try {
-    // 1. Buat dokumen baru jika belum ada
     if (!bdCurrentDocumentId) {
       const result = await client.rpc("rms_create_purchase_document", {
         p_location_id: locationId,
@@ -995,7 +1030,6 @@ async function bdSaveDraft() {
       if (result.error) throw result.error;
       bdCurrentDocumentId = result.data;
     } else {
-      // 1b. Update header dokumen yang sudah ada
       const upd = await client.from("stock_documents").update({
         location_id: locationId,
         supplier_id: supplierId,
@@ -1008,8 +1042,6 @@ async function bdSaveDraft() {
       if (upd.error) throw upd.error;
     }
 
-    // 2. Sinkronkan item: hapus yang sudah ada di DB lalu insert ulang dari cart
-    //    (paling sederhana & konsisten untuk mode edit)
     const delItems = await client
       .from("stock_document_items")
       .delete()
@@ -1038,7 +1070,6 @@ async function bdSaveDraft() {
 
     notify("Draft Barang Datang berhasil disimpan.", "ok");
 
-    // refresh daftar draft
     await bdLoadDrafts();
   } catch (error) {
     $("bdStatus").textContent =
@@ -1075,12 +1106,18 @@ async function bdPostDocument() {
     notify(result.data || "Barang Datang berhasil diposting.", "ok");
 
     // Kunci form setelah posting
-    ["bdBarcode","bdQty","bdCost","bdFindButton","bdAddButton","bdSaveButton"].forEach(id => { $(id).disabled = true; });
+    ["bdBarcode","bdQty","bdCost","bdFindButton","bdAddButton","bdSaveButton"].forEach(id => {
+      $(id).disabled = true;
+    });
+
     $("bdStatus").textContent = "Dokumen sudah diposting. Tidak dapat diedit.";
     $("bdCancelEditButton").style.display = "inline-block";
 
-    // Muat ulang daftar draft (dokumen ini hilang dari daftar karena sudah posted)
+    // Muat ulang daftar draft
     await bdLoadDrafts();
+
+    // Perbarui stok di Master Barang
+    await loadProducts();
 
     // Setelah posting, mulai form baru agar user bisa input dokumen berikutnya
     setTimeout(() => {
