@@ -14,10 +14,12 @@ h2{font-size:17px;margin:0 0 14px}.muted{color:#64748b;font-size:13px}.grid{disp
 label{display:block;font-size:12px;font-weight:650;color:#475569;margin-bottom:6px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit;min-width:0}
 input:focus,select:focus,textarea:focus{outline:2px solid #93c5fd;border-color:#2563eb}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}button{border:0;border-radius:8px;padding:10px 14px;font-weight:650;cursor:pointer;background:#e2e8f0;color:#1e293b}
-button.primary{background:#1764c0;color:white}button.danger{background:#fee2e2;color:#991b1b}button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:#1764c0;color:white}button.danger{background:#fee2e2;color:#991b1b}button.success{background:#16a34a;color:white}button:disabled{opacity:.5;cursor:not-allowed}
 .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.toolbar input{max-width:420px}
 table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #e9edf3;font-size:13px}th{background:#f8fafc;color:#475569;font-size:12px}
 .tablewrap{overflow:auto}.pill{display:inline-block;border-radius:99px;padding:4px 8px;background:#dcfce7;color:#166534;font-size:11px}.off{background:#e2e8f0;color:#475569}
+.pill.draft{background:#fef3c7;color:#92400e}
+.pill.posted{background:#dcfce7;color:#166534}
 #notice{margin:0 0 14px;padding:11px 13px;border-radius:8px;display:none;font-size:13px}
 #notice.ok{display:block;background:#dcfce7;color:#166534}
 #notice.err{display:block;background:#fee2e2;color:#991b1b}
@@ -77,6 +79,10 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
   margin-bottom:14px;
 }
 
+.draft-row { cursor:pointer; }
+.draft-row:hover { background:#f1f5f9; }
+.draft-row.active { background:#dbeafe; }
+
 @media(max-width:700px) {
   .menu-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
@@ -92,7 +98,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
   <div class="right"><span id="who" class="muted" style="color:#dbeafe"></span><button id="logout" style="display:none">Keluar</button></div>
 </header>
 <main>
-  <!-- Notice dipindah ke luar #app agar pesan login error tetap terlihat -->
   <div id="notice"></div>
 
   <section id="login" class="panel login">
@@ -112,12 +117,9 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
     <section id="dashboard">
       <div class="panel">
         <h2>Menu Utama RMS</h2>
-        <p class="muted">
-          Selamat datang. Silakan pilih aplikasi yang ingin digunakan.
-        </p>
+        <p class="muted">Selamat datang. Silakan pilih aplikasi yang ingin digunakan.</p>
 
         <div class="menu-grid">
-
           <button class="menu-card" onclick="openMaster()">
             <div class="menu-icon">📦</div>
             <h3>Master Barang</h3>
@@ -165,16 +167,13 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
             <h3>Laporan</h3>
             <p>Riwayat stok dan penjualan</p>
           </button>
-
         </div>
       </div>
     </section>
 
     <!-- HALAMAN MASTER BARANG -->
     <div id="masterPage">
-      <button class="back-button" onclick="backToMenu()">
-        ← Kembali ke Menu Utama
-      </button>
+      <button class="back-button" onclick="backToMenu()">← Kembali ke Menu Utama</button>
 
       <section class="panel">
         <h2 id="formTitle">Tambah Barang Baru</h2>
@@ -214,28 +213,55 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 
     <!-- ===== HALAMAN BARANG DATANG ===== -->
     <section id="purchasePage">
-
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <h2 style="margin:0;">Barang Datang</h2>
-        <button onclick="backPurchaseToMenu()">← Kembali ke Menu Utama</button>
+        <div class="actions" style="margin:0;">
+          <button onclick="bdStartNew()" id="bdNewBtn">+ Dokumen Baru</button>
+          <button onclick="backPurchaseToMenu()">← Kembali ke Menu Utama</button>
+        </div>
+      </div>
+
+      <!-- Daftar Draft Surat Jalan -->
+      <div class="panel" id="bdDraftPanel">
+        <div class="toolbar">
+          <div>
+            <h2 style="margin-bottom:4px">Daftar Surat Jalan (Draft)</h2>
+            <span class="muted" id="bdDraftCount">Memuat draft…</span>
+          </div>
+          <button id="bdRefreshDraftBtn" onclick="bdLoadDrafts()">Muat ulang</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kode Dokumen</th>
+                <th>Tanggal</th>
+                <th>Supplier</th>
+                <th>Lokasi</th>
+                <th>Referensi</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="bdDraftRows">
+              <tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Informasi Penerimaan -->
       <div class="panel">
-        <h3 style="margin-top:0;">Informasi Penerimaan</h3>
+        <h3 style="margin-top:0;" id="bdFormTitle">Informasi Penerimaan — Dokumen Baru</h3>
 
         <div class="grid">
           <div>
             <label>Lokasi Penerimaan *</label>
-            <select id="bdLocation">
-              <option value="">Memuat lokasi...</option>
-            </select>
+            <select id="bdLocation"><option value="">Memuat lokasi...</option></select>
           </div>
           <div>
             <label>Supplier *</label>
-            <select id="bdSupplier">
-              <option value="">Memuat supplier...</option>
-            </select>
+            <select id="bdSupplier"><option value="">Memuat supplier...</option></select>
           </div>
           <div>
             <label>No. Surat Jalan / Referensi</label>
@@ -273,9 +299,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
           <button id="bdFindButton" class="primary" onclick="bdFindProduct()">Cari Barang</button>
         </div>
 
-        <div id="bdProductInfo" style="margin:12px 0;color:#333;">
-          Belum ada barang dipilih.
-        </div>
+        <div id="bdProductInfo" style="margin:12px 0;color:#333;">Belum ada barang dipilih.</div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
           <div style="flex:0 0 120px;">
@@ -312,7 +336,8 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 
         <div class="actions">
           <button id="bdSaveButton" class="primary" onclick="bdSaveDraft()">Simpan Draft</button>
-          <button id="bdPostButton" onclick="bdPostDocument()" disabled>Posting Barang Datang</button>
+          <button id="bdPostButton" class="success" onclick="bdPostDocument()" disabled>Posting Barang Datang</button>
+          <button id="bdCancelEditButton" onclick="bdStartNew()" style="display:none;">Batal Edit / Dokumen Baru</button>
         </div>
       </div>
     </section>
@@ -355,11 +380,12 @@ function esc(v) {
 function showApp(user) {
   $("login").style.display = "none";
   $("app").style.display = "block";
-  $("dashboard").style.display = "block";
-  $("masterPage").style.display = "none";
-  $("purchasePage").style.display = "none";
   $("logout").style.display = "inline-block";
   $("who").textContent = user.email || "";
+  // Tidak memaksa ke dashboard. Halaman yang aktif tetap dipertahankan.
+  if ($("dashboard").style.display === "" || $("dashboard").style.display === "block") {
+    // hanya inisialisasi awal
+  }
 }
 
 function openMaster() {
@@ -524,6 +550,7 @@ async function init() {
     const { data: { session } } = await client.auth.getSession();
     if (session) {
       showApp(session.user);
+      $("dashboard").style.display = "block";
       await loadLookups();
       await loadProducts();
     }
@@ -533,10 +560,23 @@ async function init() {
 
   client.auth.onAuthStateChange(async (_event, session) => {
     if (session) {
-      showApp(session.user);
+      // Jika sudah login, JANGAN reset halaman aktif.
+      // Hanya tampilkan app bila sebelumnya tersembunyi (login baru).
+      const wasHidden = $("app").style.display === "none" || $("app").style.display === "";
+      if (wasHidden) {
+        showApp(session.user);
+        $("dashboard").style.display = "block";
+      } else {
+        $("who").textContent = session.user.email || "";
+      }
       try {
+        // reload data tanpa mengubah halaman aktif
         await loadLookups();
         await loadProducts();
+        if ($("purchasePage").style.display === "block") {
+          await bdLoadLookups();
+          await bdLoadDrafts();
+        }
       } catch (e) {
         notify(e.message || "Gagal memuat data.", "err");
       }
@@ -549,19 +589,13 @@ async function init() {
   });
 }
 
-// ====== Event Handlers ======
+// ====== Event Handlers Master ======
 $("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!configured) {
-    notify("Isi konfigurasi Supabase terlebih dahulu.", "err");
-    return;
-  }
+  if (!configured) { notify("Isi konfigurasi Supabase terlebih dahulu.", "err"); return; }
   const email = $("email").value.trim();
   const password = $("password").value;
-  if (!email || !password) {
-    notify("Email dan password wajib diisi.", "err");
-    return;
-  }
+  if (!email || !password) { notify("Email dan password wajib diisi.", "err"); return; }
   $("loginBtn").disabled = true;
   $("loginBtn").textContent = "Memproses…";
   try {
@@ -595,8 +629,10 @@ $("rows").addEventListener("click", e => {
 
 
 // ======================================
-// MODUL BARANG DATANG - RMS
-// Memakai `client`, `$`, `notify` dari modul utama
+// MODUL BARANG DATANG - RMS v2
+// - Edit draft
+// - Daftar draft surat jalan
+// - Tidak auto-redirect ke dashboard
 // ======================================
 
 let bdSelectedProduct = null;
@@ -604,6 +640,8 @@ let bdCart = [];
 let bdCurrentDocumentId = null;
 let bdSavedProductIds = new Set();
 let bdIsSaved = false;
+let bdIsPosted = false;
+let bdLookupCache = { locations: [], suppliers: [] };
 
 async function openPurchase() {
   $("dashboard").style.display = "none";
@@ -611,15 +649,12 @@ async function openPurchase() {
   $("purchasePage").style.display = "block";
   window.scrollTo(0, 0);
 
-  if (!client) {
-    notify("Koneksi database belum tersedia.", "err");
-    return;
-  }
-
-  if (!bdCurrentDocumentId) bdResetForm();
+  if (!client) { notify("Koneksi database belum tersedia.", "err"); return; }
 
   try {
     await bdLoadLookups();
+    await bdLoadDrafts();
+    if (!bdCurrentDocumentId) bdResetForm();
   } catch (e) {
     notify("Gagal memuat data awal Barang Datang: " + e.message, "err");
   }
@@ -632,17 +667,30 @@ function backPurchaseToMenu() {
   window.scrollTo(0, 0);
 }
 
+function bdStartNew() {
+  bdResetForm();
+  $("bdFormTitle").textContent = "Informasi Penerimaan — Dokumen Baru";
+  $("bdCancelEditButton").style.display = "none";
+  $("bdStatus").textContent = "Dokumen baru. Isi data lalu Simpan Draft.";
+  notify("Form baru siap. Silakan isi penerimaan barang.", "ok");
+  // highlight daftar draft tidak ada yang aktif
+  document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
+}
+
 function bdResetForm() {
   bdSelectedProduct = null;
   bdCart = [];
   bdCurrentDocumentId = null;
   bdSavedProductIds = new Set();
   bdIsSaved = false;
+  bdIsPosted = false;
 
   ["bdReference","bdSender","bdReceiver","bdNotes",
    "bdBarcode","bdQty","bdCost"].forEach(id => { $(id).value = ""; });
 
   $("bdDate").value = new Date().toLocaleDateString("en-CA");
+  $("bdLocation").value = "";
+  $("bdSupplier").value = "";
 
   ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
 
@@ -659,8 +707,6 @@ function bdResetForm() {
 async function bdLoadLookups() {
   const locationSelect = $("bdLocation");
   const supplierSelect = $("bdSupplier");
-  locationSelect.innerHTML = '<option value="">Memuat...</option>';
-  supplierSelect.innerHTML = '<option value="">Memuat...</option>';
 
   const [locations, suppliers] = await Promise.all([
     client.from("locations").select("id,code,name").eq("is_active", true).order("name"),
@@ -670,19 +716,154 @@ async function bdLoadLookups() {
   if (locations.error) throw locations.error;
   if (suppliers.error) throw suppliers.error;
 
-  locationSelect.innerHTML = '<option value="">Pilih lokasi</option>' +
-    (locations.data || []).map(i =>
-      `<option value="${i.id}">${esc(i.code + " - " + i.name)}</option>`
-    ).join("");
+  bdLookupCache.locations = locations.data || [];
+  bdLookupCache.suppliers = suppliers.data || [];
 
+  const curLoc = locationSelect.value;
+  const curSup = supplierSelect.value;
+
+  locationSelect.innerHTML = '<option value="">Pilih lokasi</option>' +
+    bdLookupCache.locations.map(i => `<option value="${i.id}">${esc(i.code + " - " + i.name)}</option>`).join("");
   supplierSelect.innerHTML = '<option value="">Pilih supplier</option>' +
-    (suppliers.data || []).map(i =>
-      `<option value="${i.id}">${esc(i.supplier_code + " - " + i.supplier_name)}</option>`
-    ).join("");
+    bdLookupCache.suppliers.map(i => `<option value="${i.id}">${esc(i.supplier_code + " - " + i.supplier_name)}</option>`).join("");
+
+  if (curLoc) locationSelect.value = curLoc;
+  if (curSup) supplierSelect.value = curSup;
+}
+
+// ====== DAFTAR DRAFT ======
+async function bdLoadDrafts() {
+  const tbody = $("bdDraftRows");
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>';
+  $("bdDraftCount").textContent = "Memuat draft…";
+
+  // Ambil dokumen draft (belum posted) — sesuaikan nama tabel/kolom dengan skema Anda
+  // Asumsi: tabel stock_documents dengan kolom id, doc_number, status, received_at, reference_no, supplier_id, location_id
+  const { data, error } = await client
+    .from("stock_documents")
+    .select("id,doc_number,status,received_at,reference_no,supplier_id,location_id,created_at")
+    .eq("status", "draft")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px;text-align:center;color:#991b1b;">Gagal memuat draft: ${esc(error.message)}</td></tr>`;
+    $("bdDraftCount").textContent = "Gagal memuat draft.";
+    return;
+  }
+
+  const list = data || [];
+  $("bdDraftCount").textContent = `${list.length} draft surat jalan`;
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Belum ada draft. Buat dokumen baru di atas.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(d => {
+    const sup = bdLookupCache.suppliers.find(s => s.id === d.supplier_id);
+    const loc = bdLookupCache.locations.find(l => l.id === d.location_id);
+    const isActive = bdCurrentDocumentId === d.id;
+    return `<tr class="draft-row ${isActive ? "active" : ""}" data-draft-id="${d.id}">
+      <td><b>${esc(d.doc_number || d.id)}</b></td>
+      <td>${esc(d.received_at || d.created_at || "—")}</td>
+      <td>${esc(sup ? sup.supplier_code + " - " + sup.supplier_name : d.supplier_id || "—")}</td>
+      <td>${esc(loc ? loc.code + " - " + loc.name : d.location_id || "—")}</td>
+      <td>${esc(d.reference_no || "—")}</td>
+      <td><span class="pill draft">Draft</span></td>
+      <td>
+        <button data-load-draft="${d.id}">Edit / Lanjutkan</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function bdLoadDraft(docId) {
+  try {
+    notify("Memuat draft…", "ok");
+
+    // Ambil header dokumen
+    const { data: doc, error: docErr } = await client
+      .from("stock_documents")
+      .select("*")
+      .eq("id", docId)
+      .single();
+    if (docErr) throw docErr;
+
+    if (doc.status === "posted") {
+      notify("Dokumen sudah diposting, tidak bisa diedit.", "err");
+      return;
+    }
+
+    // Ambil item
+    const { data: items, error: itemErr } = await client
+      .from("stock_document_items")
+      .select("id,product_id,qty,unit_cost,unit_price,notes")
+      .eq("document_id", docId);
+    if (itemErr) throw itemErr;
+
+    // Ambil info produk untuk tiap item
+    const productIds = (items || []).map(i => i.product_id);
+    let productMap = {};
+    if (productIds.length) {
+      const { data: prods, error: prodErr } = await client
+        .from("products")
+        .select("id,sku,name")
+        .in("id", productIds);
+      if (prodErr) throw prodErr;
+      (prods || []).forEach(p => productMap[p.id] = p);
+    }
+
+    // Set state
+    bdCurrentDocumentId = doc.id;
+    bdIsSaved = true;
+    bdIsPosted = false;
+    bdSavedProductIds = new Set((items || []).map(i => i.product_id));
+
+    bdCart = (items || []).map(i => ({
+      product_id: i.product_id,
+      sku: productMap[i.product_id]?.sku || "—",
+      name: productMap[i.product_id]?.name || "—",
+      qty: Number(i.qty),
+      unit_cost: Number(i.unit_cost)
+    }));
+
+    // Isi form
+    $("bdLocation").value = doc.location_id || "";
+    $("bdSupplier").value = doc.supplier_id || "";
+    $("bdReference").value = doc.reference_no || "";
+    $("bdDate").value = doc.received_at || "";
+    $("bdSender").value = doc.sender_name || "";
+    $("bdReceiver").value = doc.receiver_name || "";
+    $("bdNotes").value = doc.notes || "";
+
+    // Status UI: sudah tersimpan, bisa tambah item baru, bisa posting
+    $("bdFormTitle").textContent = "Informasi Penerimaan — Edit Draft " + (doc.doc_number || doc.id);
+    $("bdStatus").textContent = "Draft aktif: " + (doc.doc_number || doc.id) + " (bisa diedit)";
+    $("bdSaveButton").disabled = false;
+    $("bdSaveButton").textContent = "Simpan Perubahan";
+    $("bdPostButton").disabled = false;
+    $("bdCancelEditButton").style.display = "inline-block";
+
+    // Input barang AKTIF (bisa tambah item baru)
+    ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
+    $("bdAddButton").disabled = true;
+
+    bdRenderCart();
+    // highlight baris aktif
+    document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
+    const row = document.querySelector(`#bdDraftRows tr[data-draft-id="${docId}"]`);
+    if (row) row.classList.add("active");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    notify("Draft dimuat. Anda dapat menambah/menghapus item lalu Simpan Perubahan.", "ok");
+  } catch (e) {
+    notify("Gagal memuat draft: " + e.message, "err");
+  }
 }
 
 async function bdFindProduct() {
-  if (bdIsSaved) return;
+  if (bdIsPosted) return;
 
   const keyword = $("bdBarcode").value.trim();
   if (!keyword) { notify("Masukkan barcode atau SKU terlebih dahulu.", "err"); return; }
@@ -739,7 +920,7 @@ async function bdFindProduct() {
 }
 
 function bdAddToCart() {
-  if (bdIsSaved) return;
+  if (bdIsPosted) return;
   if (!bdSelectedProduct) { notify("Cari barang terlebih dahulu.", "err"); return; }
 
   const qty = Number($("bdQty").value);
@@ -782,26 +963,25 @@ function bdRenderCart() {
       <td>${esc(item.sku)} - ${esc(item.name)}</td>
       <td>${esc(item.qty)}</td>
       <td>${Number(item.unit_cost).toLocaleString("id-ID")}</td>
-      <td><button data-bd-remove="${index}" ${bdIsSaved ? "disabled" : ""}>Hapus</button></td>
+      <td><button data-bd-remove="${index}" ${bdIsPosted ? "disabled" : ""}>Hapus</button></td>
     </tr>
   `).join("");
 }
 
 async function bdSaveDraft() {
-  if (bdIsSaved) return;
+  if (bdIsPosted) { notify("Dokumen sudah diposting.", "err"); return; }
   if (!bdCart.length) { notify("Masukkan minimal satu barang.", "err"); return; }
 
   const locationId = $("bdLocation").value;
   const supplierId = $("bdSupplier").value;
-  if (!locationId || !supplierId) {
-    notify("Pilih lokasi dan supplier terlebih dahulu.", "err"); return;
-  }
+  if (!locationId || !supplierId) { notify("Pilih lokasi dan supplier terlebih dahulu.", "err"); return; }
 
   const saveButton = $("bdSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Menyimpan...";
 
   try {
+    // 1. Buat dokumen baru jika belum ada
     if (!bdCurrentDocumentId) {
       const result = await client.rpc("rms_create_purchase_document", {
         p_location_id: locationId,
@@ -814,10 +994,29 @@ async function bdSaveDraft() {
       });
       if (result.error) throw result.error;
       bdCurrentDocumentId = result.data;
+    } else {
+      // 1b. Update header dokumen yang sudah ada
+      const upd = await client.from("stock_documents").update({
+        location_id: locationId,
+        supplier_id: supplierId,
+        reference_no: $("bdReference").value.trim() || null,
+        notes: $("bdNotes").value.trim() || null,
+        sender_name: $("bdSender").value.trim() || null,
+        receiver_name: $("bdReceiver").value.trim() || null,
+        received_at: $("bdDate").value
+      }).eq("id", bdCurrentDocumentId);
+      if (upd.error) throw upd.error;
     }
 
+    // 2. Sinkronkan item: hapus yang sudah ada di DB lalu insert ulang dari cart
+    //    (paling sederhana & konsisten untuk mode edit)
+    const delItems = await client
+      .from("stock_document_items")
+      .delete()
+      .eq("document_id", bdCurrentDocumentId);
+    if (delItems.error) throw delItems.error;
+
     for (const item of bdCart) {
-      if (bdSavedProductIds.has(item.product_id)) continue;
       const result = await client.rpc("rms_add_stock_document_item", {
         p_document_id: bdCurrentDocumentId,
         p_product_id: item.product_id,
@@ -827,18 +1026,20 @@ async function bdSaveDraft() {
         p_notes: null
       });
       if (result.error) throw result.error;
-      bdSavedProductIds.add(item.product_id);
     }
 
     bdIsSaved = true;
+    bdSavedProductIds = new Set(bdCart.map(i => i.product_id));
+
     $("bdStatus").textContent = "Draft tersimpan. Nomor dokumen: " + bdCurrentDocumentId;
     $("bdPostButton").disabled = false;
-
-    ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = true; });
-    $("bdAddButton").disabled = true;
-    bdRenderCart();
+    $("bdSaveButton").textContent = "Simpan Perubahan";
+    $("bdCancelEditButton").style.display = "inline-block";
 
     notify("Draft Barang Datang berhasil disimpan.", "ok");
+
+    // refresh daftar draft
+    await bdLoadDrafts();
   } catch (error) {
     $("bdStatus").textContent =
       "Draft belum lengkap. Dokumen: " + (bdCurrentDocumentId || "belum dibuat") + ".";
@@ -848,8 +1049,8 @@ async function bdSaveDraft() {
       "err"
     );
   } finally {
-    saveButton.disabled = bdIsSaved;
-    saveButton.textContent = bdIsSaved ? "Draft Tersimpan" : "Simpan Draft";
+    saveButton.disabled = bdIsPosted;
+    if (!bdIsPosted) saveButton.textContent = bdIsSaved ? "Simpan Perubahan" : "Simpan Draft";
   }
 }
 
@@ -857,7 +1058,8 @@ async function bdPostDocument() {
   if (!bdCurrentDocumentId || !bdIsSaved) {
     notify("Simpan draft terlebih dahulu.", "err"); return;
   }
-  if (!confirm("Posting Barang Datang sekarang?\nStok akan langsung bertambah.")) return;
+  if (bdIsPosted) { notify("Dokumen sudah diposting.", "err"); return; }
+  if (!confirm("Posting Barang Datang sekarang?\nStok akan langsung bertambah dan dokumen tidak bisa diedit lagi.")) return;
 
   const postButton = $("bdPostButton");
   postButton.disabled = true;
@@ -869,9 +1071,22 @@ async function bdPostDocument() {
     });
     if (result.error) throw result.error;
 
+    bdIsPosted = true;
     notify(result.data || "Barang Datang berhasil diposting.", "ok");
-    bdResetForm();
-    await bdLoadLookups();
+
+    // Kunci form setelah posting
+    ["bdBarcode","bdQty","bdCost","bdFindButton","bdAddButton","bdSaveButton"].forEach(id => { $(id).disabled = true; });
+    $("bdStatus").textContent = "Dokumen sudah diposting. Tidak dapat diedit.";
+    $("bdCancelEditButton").style.display = "inline-block";
+
+    // Muat ulang daftar draft (dokumen ini hilang dari daftar karena sudah posted)
+    await bdLoadDrafts();
+
+    // Setelah posting, mulai form baru agar user bisa input dokumen berikutnya
+    setTimeout(() => {
+      bdStartNew();
+      $("bdStatus").textContent = "Posting selesai. Form baru siap digunakan.";
+    }, 400);
   } catch (error) {
     notify("Posting gagal: " + error.message, "err");
     postButton.disabled = false;
@@ -880,13 +1095,24 @@ async function bdPostDocument() {
   }
 }
 
-// Event delegation untuk tombol Hapus di keranjang
+// ====== Event delegation ======
 document.getElementById("bdCartRows").addEventListener("click", e => {
   const idx = e.target.dataset.bdRemove;
   if (idx === undefined) return;
-  if (bdIsSaved) return;
+  if (bdIsPosted) return;
   bdCart.splice(Number(idx), 1);
   bdRenderCart();
+});
+
+document.getElementById("bdDraftRows").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-load-draft]");
+  if (btn) {
+    e.stopPropagation();
+    bdLoadDraft(btn.dataset.loadDraft);
+    return;
+  }
+  const row = e.target.closest("tr[data-draft-id]");
+  if (row) bdLoadDraft(row.dataset.draftId);
 });
 
 init();
