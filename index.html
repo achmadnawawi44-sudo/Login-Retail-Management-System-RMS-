@@ -679,7 +679,10 @@ $("rows").addEventListener("click", e => {
 
 
 // ======================================
-// MODUL BARANG DATANG - RMS v3
+// MODUL BARANG DATANG - RMS v4
+// - Edit draft
+// - Daftar draft surat jalan (id sebagai kode dokumen)
+// - Tidak auto-redirect ke dashboard
 // ======================================
 
 let bdSelectedProduct = null;
@@ -777,15 +780,20 @@ async function bdLoadLookups() {
   if (curSup) supplierSelect.value = curSup;
 }
 
-// ====== DAFTAR DRAFT ======
+/* =========================================================
+   DAFTAR DRAFT — v4
+   doc_number tidak ada → pakai id sebagai kode dokumen,
+   dengan fallback format ringkas BD-YYYYMMDD-XXXXXX
+   ========================================================= */
 async function bdLoadDrafts() {
   const tbody = $("bdDraftRows");
   tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>';
   $("bdDraftCount").textContent = "Memuat draft…";
 
+  // doc_number tidak tersedia di stock_documents — jangan di-select.
   const { data, error } = await client
     .from("stock_documents")
-    .select("id,doc_number,status,received_at,reference_no,supplier_id,location_id,created_at")
+    .select("id,status,received_at,reference_no,supplier_id,location_id,created_at")
     .eq("status", "draft")
     .order("created_at", { ascending: false })
     .limit(100);
@@ -807,12 +815,32 @@ async function bdLoadDrafts() {
   tbody.innerHTML = list.map(d => {
     const sup = bdLookupCache.suppliers.find(s => s.id === d.supplier_id);
     const loc = bdLookupCache.locations.find(l => l.id === d.location_id);
+
+    // Fallback nama supplier/lokasi jika cache belum termuat
+    const supLabel = sup
+      ? sup.supplier_code + " - " + sup.supplier_name
+      : (d.supplier_id || "—");
+    const locLabel = loc
+      ? loc.code + " - " + loc.name
+      : (d.location_id || "—");
+
+    // Kode dokumen = id (karena doc_number tidak tersedia)
+    const docLabel = d.id;
+
+    // Format ringkas untuk tooltip (opsional)
+    const shortId = String(d.id).slice(0, 6).toUpperCase();
+    const datePart = (d.received_at || d.created_at || "").slice(0, 10).replace(/-/g, "");
+    const shortLabel = d.reference_no
+      ? d.reference_no
+      : `BD-${datePart || "00000000"}-${shortId}`;
+
     const isActive = bdCurrentDocumentId === d.id;
+
     return `<tr class="draft-row ${isActive ? "active" : ""}" data-draft-id="${d.id}">
-      <td><b>${esc(d.doc_number || d.id)}</b></td>
+      <td><b title="${esc(d.id)}">${esc(shortLabel)}</b></td>
       <td>${esc(d.received_at || d.created_at || "—")}</td>
-      <td>${esc(sup ? sup.supplier_code + " - " + sup.supplier_name : d.supplier_id || "—")}</td>
-      <td>${esc(loc ? loc.code + " - " + loc.name : d.location_id || "—")}</td>
+      <td>${esc(supLabel)}</td>
+      <td>${esc(locLabel)}</td>
       <td>${esc(d.reference_no || "—")}</td>
       <td><span class="pill draft">Draft</span></td>
       <td>
@@ -876,8 +904,9 @@ async function bdLoadDraft(docId) {
     $("bdReceiver").value = doc.receiver_name || "";
     $("bdNotes").value = doc.notes || "";
 
-    $("bdFormTitle").textContent = "Informasi Penerimaan — Edit Draft " + (doc.doc_number || doc.id);
-    $("bdStatus").textContent = "Draft aktif: " + (doc.doc_number || doc.id) + " (bisa diedit)";
+    // Tidak pakai doc_number — pakai id dokumen
+    $("bdFormTitle").textContent = "Informasi Penerimaan — Edit Draft " + doc.id;
+    $("bdStatus").textContent = "Draft aktif: " + doc.id + " (bisa diedit)";
     $("bdSaveButton").disabled = false;
     $("bdSaveButton").textContent = "Simpan Perubahan";
     $("bdPostButton").disabled = false;
@@ -1063,7 +1092,8 @@ async function bdSaveDraft() {
     bdIsSaved = true;
     bdSavedProductIds = new Set(bdCart.map(i => i.product_id));
 
-    $("bdStatus").textContent = "Draft tersimpan. Nomor dokumen: " + bdCurrentDocumentId;
+    // Tidak pakai doc_number
+    $("bdStatus").textContent = "Draft tersimpan. ID dokumen: " + bdCurrentDocumentId;
     $("bdPostButton").disabled = false;
     $("bdSaveButton").textContent = "Simpan Perubahan";
     $("bdCancelEditButton").style.display = "inline-block";
