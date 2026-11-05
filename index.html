@@ -49,7 +49,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 </head>
 <body>
 <header class="top">
-  <div><h1>RETAIL MANAGEMENT SYSTEM</h1><p>Master Barang · Database Terpusat</p></div>
+  <div><h1>RETAIL MANAGEMENT SYSTEM</h1><p>Database Terpusat · Multi-Store</p></div>
   <div class="right"><span id="who" class="muted" style="color:#dbeafe"></span><button id="logout" style="display:none">Keluar</button></div>
 </header>
 <main>
@@ -73,31 +73,32 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         <h2>Menu Utama RMS</h2>
         <p class="muted">Selamat datang. Silakan pilih aplikasi yang ingin digunakan.</p>
         <div class="menu-grid">
-          <button class="menu-card" onclick="openMaster()">
+          <button id="menuMasterCard" class="menu-card" onclick="openMaster()">
             <div class="menu-icon">📦</div><h3>Master Barang</h3><p>Data produk, SKU dan barcode</p>
           </button>
-          <button class="menu-card" onclick="openPurchase()">
+          <button id="menuPurchaseCard" class="menu-card" onclick="openPurchase()">
             <div class="menu-icon">🚚</div><h3>Barang Datang</h3><p>Penerimaan barang dan tambah stok</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('POS Kasir')">
+          <button class="menu-card disabled" id="menuPosCard" onclick="comingSoon('POS Kasir')">
             <div class="menu-icon">🛒</div><h3>POS Kasir</h3><p>Transaksi penjualan dan struk</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('Cek Harga')">
+          <button class="menu-card disabled" id="menuPriceCard" onclick="comingSoon('Cek Harga')">
             <div class="menu-icon">🔎</div><h3>Cek Harga</h3><p>Cari produk melalui barcode</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('Return')">
+          <button class="menu-card disabled" id="menuReturnCard" onclick="comingSoon('Return')">
             <div class="menu-icon">↩️</div><h3>Return</h3><p>Pencatatan barang retur</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('Barang Rusak')">
+          <button class="menu-card disabled" id="menuBreakageCard" onclick="comingSoon('Barang Rusak')">
             <div class="menu-icon">📦</div><h3>Barang Rusak</h3><p>Pencatatan barang rusak</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('Stok Opname')">
+          <button class="menu-card disabled" id="menuOpnameCard" onclick="comingSoon('Stok Opname')">
             <div class="menu-icon">📋</div><h3>Stok Opname</h3><p>Perhitungan stok fisik</p>
           </button>
-          <button class="menu-card disabled" onclick="comingSoon('Laporan')">
+          <button class="menu-card disabled" id="menuReportsCard" onclick="comingSoon('Laporan')">
             <div class="menu-icon">📊</div><h3>Laporan</h3><p>Riwayat stok dan penjualan</p>
           </button>
         </div>
+        <p id="roleNotice" class="muted" style="margin:14px 0 0;"></p>
       </div>
     </section>
 
@@ -235,6 +236,8 @@ const configured = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.star
 const client = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 let products = [], categories = [], units = [];
+let currentProfile = null;
+let activeSessionUserId = null;
 
 const $ = id => document.getElementById(id);
 
@@ -254,14 +257,96 @@ function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function roleLabel(role) {
+  return ({
+    master_admin: "Master Admin",
+    store_admin: "Admin Store",
+    employee: "Karyawan"
+  })[role] || "Role tidak dikenal";
+}
+
+function applyRoleUI() {
+  const role = currentProfile?.role;
+  const isMaster = role === "master_admin";
+  const canReceive = isMaster || role === "store_admin";
+
+  $("menuMasterCard").style.display = isMaster ? "" : "none";
+  $("menuPurchaseCard").style.display = canReceive ? "" : "none";
+
+  // Modul lain belum diaktifkan. Hak aksesnya akan ditambahkan saat modul dibuat.
+  ["menuPosCard", "menuPriceCard", "menuReturnCard", "menuBreakageCard", "menuOpnameCard", "menuReportsCard"]
+    .forEach(id => { if ($(id)) $(id).style.display = "none"; });
+
+  $("roleNotice").textContent = role === "employee"
+    ? "Akun Karyawan aktif. Belum ada modul yang diberikan; izin fitur karyawan akan diatur pada tahap berikutnya."
+    : role === "store_admin"
+      ? "Akses Admin Store dibatasi pada lokasi yang ditugaskan oleh Master Admin."
+      : "Akses penuh Master Admin.";
+}
+
 function showApp(user) {
   $("login").style.display = "none";
   $("app").style.display = "block";
   $("logout").style.display = "inline-block";
-  $("who").textContent = user.email || "";
+  $("who").textContent = `${currentProfile?.full_name || user.email || "Pengguna"} · ${roleLabel(currentProfile?.role)}`;
+  applyRoleUI();
+}
+
+async function loadCurrentProfile(user) {
+  const { data, error } = await client
+    .from("user_profiles")
+    .select("user_id,full_name,role,is_active")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Profil RMS belum dibuat. Hubungi Master Admin.");
+  if (!data.is_active) throw new Error("Akun RMS ini sedang dinonaktifkan. Hubungi Master Admin.");
+  if (!["master_admin", "store_admin", "employee"].includes(data.role)) {
+    throw new Error("Role akun tidak valid. Hubungi Master Admin.");
+  }
+  currentProfile = data;
+  activeSessionUserId = user.id;
+  return data;
+}
+
+function clearAppSession() {
+  currentProfile = null;
+  activeSessionUserId = null;
+  $("app").style.display = "none";
+  $("dashboard").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("purchasePage").style.display = "none";
+  $("login").style.display = "block";
+  $("logout").style.display = "none";
+  $("who").textContent = "";
+}
+
+async function handleAuthenticatedSession(session) {
+  if (!session?.user) {
+    clearAppSession();
+    return;
+  }
+  // Hindari memuat ulang profil berkali-kali untuk sesi pengguna yang sama.
+  if (activeSessionUserId === session.user.id && currentProfile) return;
+  try {
+    await loadCurrentProfile(session.user);
+    showApp(session.user);
+    $("dashboard").style.display = "block";
+    $("masterPage").style.display = "none";
+    $("purchasePage").style.display = "none";
+    await loadLookups();
+    await loadProducts();
+  } catch (e) {
+    clearAppSession();
+    notify(e.message || "Gagal memuat profil pengguna.", "err");
+  }
 }
 
 function openMaster() {
+  if (currentProfile?.role !== "master_admin") {
+    notify("Menu Master Barang hanya dapat diakses Master Admin.", "err");
+    return;
+  }
   $("dashboard").style.display = "none";
   $("purchasePage").style.display = "none";
   $("masterPage").style.display = "block";
@@ -354,6 +439,7 @@ function renderProducts() {
 
 async function saveProduct(e) {
   e.preventDefault();
+  if (currentProfile?.role !== "master_admin") { notify("Hanya Master Admin yang dapat mengelola Master Barang.", "err"); return; }
   $("saveBtn").disabled = true;
   try {
     const id = $("productId").value || null;
@@ -399,6 +485,7 @@ async function saveProduct(e) {
 }
 
 function editProduct(id) {
+  if (currentProfile?.role !== "master_admin") { notify("Hanya Master Admin yang dapat mengedit Master Barang.", "err"); return; }
   const p = products.find(x => x.id === id);
   if (!p) return;
   $("productId").value = p.id;
@@ -416,6 +503,7 @@ function editProduct(id) {
 }
 
 async function toggleProduct(id) {
+  if (currentProfile?.role !== "master_admin") { notify("Hanya Master Admin yang dapat mengubah status barang.", "err"); return; }
   const p = products.find(x => x.id === id);
   if (!p) return;
   const action = p.is_active ? "menonaktifkan" : "mengaktifkan";
@@ -431,44 +519,31 @@ async function init() {
     notify("Konfigurasi Supabase belum diisi. Periksa SUPABASE_URL dan SUPABASE_ANON_KEY.", "err");
     return;
   }
+
+  // Callback auth dibuat sinkron; proses query Supabase dijalankan setelah callback selesai.
+  client.auth.onAuthStateChange((_event, session) => {
+    window.setTimeout(() => {
+      handleAuthenticatedSession(session).then(async () => {
+        if (session && $("purchasePage").style.display === "block" && currentProfile) {
+          try {
+            await bdLoadLookups();
+            await bdLoadDrafts();
+          } catch (e) {
+            notify(e.message || "Gagal memuat data Barang Datang.", "err");
+          }
+        }
+      });
+    }, 0);
+  });
+
   try {
-    const { data: { session } } = await client.auth.getSession();
-    if (session) {
-      showApp(session.user);
-      $("dashboard").style.display = "block";
-      await loadLookups();
-      await loadProducts();
-    }
+    const { data: { session }, error } = await client.auth.getSession();
+    if (error) throw error;
+    if (session) await handleAuthenticatedSession(session);
   } catch (e) {
+    clearAppSession();
     notify(e.message || "Gagal memuat data awal.", "err");
   }
-
-  client.auth.onAuthStateChange(async (_event, session) => {
-    if (session) {
-      const wasHidden = $("app").style.display === "none" || $("app").style.display === "";
-      if (wasHidden) {
-        showApp(session.user);
-        $("dashboard").style.display = "block";
-      } else {
-        $("who").textContent = session.user.email || "";
-      }
-      try {
-        await loadLookups();
-        await loadProducts();
-        if ($("purchasePage").style.display === "block") {
-          await bdLoadLookups();
-          await bdLoadDrafts();
-        }
-      } catch (e) {
-        notify(e.message || "Gagal memuat data.", "err");
-      }
-    } else {
-      $("app").style.display = "none";
-      $("login").style.display = "block";
-      $("logout").style.display = "none";
-      $("who").textContent = "";
-    }
-  });
 }
 
 $("loginForm").addEventListener("submit", async (e) => {
@@ -493,7 +568,9 @@ $("loginForm").addEventListener("submit", async (e) => {
 });
 
 $("logout").addEventListener("click", async () => {
-  await client.auth.signOut();
+  const { error } = await client.auth.signOut();
+  if (error) { notify(error.message, "err"); return; }
+  clearAppSession();
   notify("Anda telah keluar.", "ok");
 });
 
@@ -522,6 +599,10 @@ let bdIsPosted = false;
 let bdLookupCache = { locations: [], suppliers: [] };
 
 async function openPurchase() {
+  if (!["master_admin", "store_admin"].includes(currentProfile?.role)) {
+    notify("Menu Barang Datang hanya dapat diakses Master Admin dan Admin Store.", "err");
+    return;
+  }
   $("dashboard").style.display = "none";
   $("masterPage").style.display = "none";
   $("purchasePage").style.display = "block";
