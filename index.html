@@ -20,6 +20,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 .tablewrap{overflow:auto}.pill{display:inline-block;border-radius:99px;padding:4px 8px;background:#dcfce7;color:#166534;font-size:11px}.off{background:#e2e8f0;color:#475569}
 .pill.draft{background:#fef3c7;color:#92400e}
 .pill.posted{background:#dcfce7;color:#166534}
+.pill.role{background:#dbeafe;color:#1e40af}
 #notice{margin:0 0 14px;padding:11px 13px;border-radius:8px;display:none;font-size:13px}
 #notice.ok{display:block;background:#dcfce7;color:#166534}
 #notice.err{display:block;background:#fee2e2;color:#991b1b}
@@ -31,6 +32,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 #dashboard { display:none; }
 #masterPage { display:none; }
 #purchasePage { display:none; }
+#userPage { display:none; }
 
 .menu-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
 .menu-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:22px 14px; text-align:center; cursor:pointer; transition:.2s; }
@@ -43,6 +45,33 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 .draft-row { cursor:pointer; }
 .draft-row:hover { background:#f1f5f9; }
 .draft-row.active { background:#dbeafe; }
+
+.store-list {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:8px; margin-top:6px;
+}
+.store-list label {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px;
+  font-weight:500; font-size:13px; background:#fff; cursor:pointer;
+}
+.store-list input[type="checkbox"] { width:auto; }
+
+.perm-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:8px; margin-top:8px;
+}
+.perm-grid label {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px;
+  font-weight:500; font-size:13px; background:#fff; cursor:pointer;
+}
+.perm-grid label.disabled {
+  opacity:.6; cursor:not-allowed; background:#f1f5f9;
+}
+.perm-grid input[type="checkbox"] { width:auto; }
+
 @media(max-width:700px) { .menu-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:400px) { .menu-grid { grid-template-columns:1fr; } }
 </style>
@@ -75,6 +104,12 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         <div class="menu-grid">
           <button id="menuMasterCard" class="menu-card" onclick="openMaster()">
             <div class="menu-icon">📦</div><h3>Master Barang</h3><p>Data produk, SKU dan barcode</p>
+          </button>
+          <button id="menuUserCard" class="menu-card"
+            onclick="openUserManagement()" style="display:none;">
+            <div class="menu-icon">👥</div>
+            <h3>Manajemen Pengguna</h3>
+            <p>Undang pengguna dan atur hak akses</p>
           </button>
           <button id="menuPurchaseCard" class="menu-card" onclick="openPurchase()">
             <div class="menu-icon">🚚</div><h3>Barang Datang</h3><p>Penerimaan barang dan tambah stok</p>
@@ -141,6 +176,96 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
             </thead>
             <tbody id="rows"><tr><td colspan="9">Belum ada data.</td></tr></tbody>
           </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== HALAMAN MANAJEMEN PENGGUNA ===== -->
+    <div id="userPage">
+      <button class="back-button" onclick="backToMenu()">← Kembali ke Menu Utama</button>
+
+      <section class="panel">
+        <h2>Undang Pengguna Baru</h2>
+        <p class="muted">
+          Kirim undangan melalui email. Pengguna akan menerima tautan untuk
+          mengatur password lalu bisa masuk ke RMS.
+        </p>
+        <form id="inviteForm">
+          <div class="grid">
+            <div style="grid-column:span 2;">
+              <label>Nama Lengkap *</label>
+              <input id="invName" required maxlength="120" placeholder="Budi Santoso">
+            </div>
+            <div style="grid-column:span 2;">
+              <label>Email *</label>
+              <input id="invEmail" type="email" required maxlength="200" placeholder="budi@toko.com">
+            </div>
+            <div style="grid-column:span 2;">
+              <label>Role *</label>
+              <select id="invRole" required>
+                <option value="">Pilih role…</option>
+                <option value="store_admin">Admin Store</option>
+                <option value="employee">Karyawan</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="margin-top:14px;">Store yang Ditugaskan *</label>
+          <div id="invStoreList" class="store-list">
+            <span class="muted">Memuat daftar store…</span>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary" id="inviteBtn">Kirim Undangan</button>
+            <button type="button" id="inviteResetBtn">Reset Form</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <div>
+            <h2 style="margin-bottom:4px">Daftar Pengguna RMS</h2>
+            <span class="muted" id="userCount">Memuat…</span>
+          </div>
+          <button onclick="loadUserList()">Muat ulang</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama</th><th>User ID</th><th>Role</th>
+                <th>Store</th><th>Status</th><th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="userRows">
+              <tr><td colspan="6" style="padding:15px;text-align:center;">Memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Panel Hak Akses Fitur -->
+      <section class="panel" id="permPanel" style="display:none;">
+        <h2>Hak Akses Fitur — <span id="permUserName">—</span></h2>
+        <p class="muted">
+          Atur fitur yang boleh diakses pengguna ini per store. Izin disimpan
+          di database dan tetap diperiksa di server, bukan hanya disembunyikan di UI.
+        </p>
+
+        <!-- Pilihan Store -->
+        <div style="max-width:360px;margin:14px 0;">
+          <label for="permLocation">Pilih Store</label>
+          <select id="permLocation" onchange="loadPermissionForLocation()">
+            <option value="">Memuat store...</option>
+          </select>
+        </div>
+
+        <div id="permCheckboxes" class="perm-grid"></div>
+
+        <div class="actions">
+          <button class="primary" onclick="saveUserPermissions()">Simpan Hak Akses</button>
+          <button onclick="closePermissionPanel()">Tutup</button>
         </div>
       </section>
     </div>
@@ -238,8 +363,20 @@ const client = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_
 let products = [], categories = [], units = [];
 let currentProfile = null;
 let activeSessionUserId = null;
+let storeCache = [];
 
 const $ = id => document.getElementById(id);
+
+const FEATURES = [
+  { key: "master_barang",  label: "Master Barang" },
+  { key: "barang_datang",  label: "Barang Datang" },
+  { key: "pos_kasir",      label: "POS Kasir" },
+  { key: "cek_harga",      label: "Cek Harga" },
+  { key: "return",         label: "Return" },
+  { key: "barang_rusak",   label: "Barang Rusak" },
+  { key: "stok_opname",    label: "Stok Opname" },
+  { key: "laporan",        label: "Laporan" }
+];
 
 function notify(message, type = "ok") {
   const n = $("notice");
@@ -248,21 +385,14 @@ function notify(message, type = "ok") {
   n.style.display = "block";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
-
 function rupiah(v) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(v || 0));
 }
-
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-
 function roleLabel(role) {
-  return ({
-    master_admin: "Master Admin",
-    store_admin: "Admin Store",
-    employee: "Karyawan"
-  })[role] || "Role tidak dikenal";
+  return ({ master_admin: "Master Admin", store_admin: "Admin Store", employee: "Karyawan" })[role] || "Role tidak dikenal";
 }
 
 function applyRoleUI() {
@@ -271,6 +401,7 @@ function applyRoleUI() {
   const canReceive = isMaster || role === "store_admin";
 
   $("menuMasterCard").style.display = isMaster ? "" : "none";
+  $("menuUserCard").style.display = isMaster ? "" : "none";
   $("menuPurchaseCard").style.display = canReceive ? "" : "none";
 
   ["menuPosCard", "menuPriceCard", "menuReturnCard", "menuBreakageCard", "menuOpnameCard", "menuReportsCard"]
@@ -314,6 +445,7 @@ function clearAppSession() {
   $("app").style.display = "none";
   $("dashboard").style.display = "none";
   $("masterPage").style.display = "none";
+  $("userPage").style.display = "none";
   $("purchasePage").style.display = "none";
   $("login").style.display = "block";
   $("logout").style.display = "none";
@@ -321,16 +453,14 @@ function clearAppSession() {
 }
 
 async function handleAuthenticatedSession(session) {
-  if (!session?.user) {
-    clearAppSession();
-    return;
-  }
+  if (!session?.user) { clearAppSession(); return; }
   if (activeSessionUserId === session.user.id && currentProfile) return;
   try {
     await loadCurrentProfile(session.user);
     showApp(session.user);
     $("dashboard").style.display = "block";
     $("masterPage").style.display = "none";
+    $("userPage").style.display = "none";
     $("purchasePage").style.display = "none";
     await loadLookups();
     await loadProducts();
@@ -346,13 +476,31 @@ function openMaster() {
     return;
   }
   $("dashboard").style.display = "none";
+  $("userPage").style.display = "none";
   $("purchasePage").style.display = "none";
   $("masterPage").style.display = "block";
   window.scrollTo(0, 0);
 }
 
+function openPurchase() {
+  if (!["master_admin", "store_admin"].includes(currentProfile?.role)) {
+    notify("Menu Barang Datang hanya dapat diakses Master Admin dan Admin Store.", "err");
+    return;
+  }
+  $("dashboard").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("userPage").style.display = "none";
+  $("purchasePage").style.display = "block";
+  window.scrollTo(0, 0);
+  if (!client) { notify("Koneksi database belum tersedia.", "err"); return; }
+  bdLoadLookups().then(bdLoadDrafts).then(() => {
+    if (!bdCurrentDocumentId) bdResetForm();
+  }).catch(e => notify("Gagal memuat data awal Barang Datang: " + e.message, "err"));
+}
+
 function backToMenu() {
   $("masterPage").style.display = "none";
+  $("userPage").style.display = "none";
   $("purchasePage").style.display = "none";
   $("dashboard").style.display = "block";
   window.scrollTo(0, 0);
@@ -360,6 +508,335 @@ function backToMenu() {
 
 function comingSoon(menu) { notify("Menu " + menu + " akan dibuat pada tahap berikutnya."); }
 
+
+/* =========================================================
+   MANAJEMEN PENGGUNA — Tahap 1, 2 & 3
+   ========================================================= */
+
+async function openUserManagement() {
+  if (currentProfile?.role !== "master_admin") {
+    notify("Menu Manajemen Pengguna hanya dapat diakses Master Admin.", "err");
+    return;
+  }
+  $("dashboard").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("purchasePage").style.display = "none";
+  $("userPage").style.display = "block";
+  window.scrollTo(0, 0);
+
+  try {
+    await Promise.all([loadStoreCheckboxes(), loadUserList()]);
+  } catch (e) {
+    notify("Gagal memuat data Manajemen Pengguna: " + e.message, "err");
+  }
+}
+
+/* ---------- Tahap 1: Form Undangan ---------- */
+
+async function loadStoreCheckboxes() {
+  const box = $("invStoreList");
+  box.innerHTML = '<span class="muted">Memuat daftar store…</span>';
+
+  const { data, error } = await client
+    .from("locations")
+    .select("id,code,name")
+    .eq("is_active", true)
+    .order("name");
+  if (error) {
+    box.innerHTML = '<span class="muted" style="color:#991b1b;">Gagal memuat store: ' + esc(error.message) + '</span>';
+    throw error;
+  }
+  storeCache = data || [];
+
+  if (!storeCache.length) {
+    box.innerHTML = '<span class="muted">Belum ada store aktif. Tambahkan di Master Data terlebih dahulu.</span>';
+    return;
+  }
+
+  box.innerHTML = storeCache.map(s => `
+    <label>
+      <input type="checkbox" value="${s.id}" data-store-id="${s.id}">
+      <span>${esc(s.code + " - " + s.name)}</span>
+    </label>
+  `).join("");
+}
+
+function resetInviteForm() {
+  $("inviteForm").reset();
+  document.querySelectorAll("#invStoreList input[type=checkbox]").forEach(cb => { cb.checked = false; });
+}
+
+async function submitInvite(e) {
+  e.preventDefault();
+  if (currentProfile?.role !== "master_admin") {
+    notify("Hanya Master Admin yang dapat mengundang pengguna.", "err");
+    return;
+  }
+
+  const fullName = $("invName").value.trim();
+  const email = $("invEmail").value.trim();
+  const role = $("invRole").value;
+  const locationIds = Array.from(document.querySelectorAll("#invStoreList input[type=checkbox]:checked"))
+    .map(cb => cb.value);
+
+  if (!fullName || !email || !role) {
+    notify("Nama, email, dan role wajib diisi.", "err");
+    return;
+  }
+  if (!locationIds.length) {
+    notify("Pilih minimal satu store untuk pengguna ini.", "err");
+    return;
+  }
+
+  const btn = $("inviteBtn");
+  btn.disabled = true;
+  btn.textContent = "Mengirim undangan…";
+
+  try {
+    const { data, error } = await client.functions.invoke("rms-invite-user", {
+      body: {
+        full_name: fullName,
+        email,
+        role,
+        location_ids: locationIds
+      }
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    notify(
+      `Undangan berhasil dikirim ke ${email}. ` +
+      `Pengguna akan menerima email untuk mengatur password.`,
+      "ok"
+    );
+    resetInviteForm();
+    await loadUserList();
+  } catch (err) {
+    notify("Gagal mengirim undangan: " + (err.message || String(err)), "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Kirim Undangan";
+  }
+}
+
+/* ---------- Tahap 2: Daftar Pengguna ---------- */
+
+let selectedPermissionUserId = null;
+
+async function loadUserList() {
+  const tbody = $("userRows");
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:15px;text-align:center;">Memuat…</td></tr>';
+  $("userCount").textContent = "Memuat…";
+
+  const { data: profiles, error: pErr } = await client
+    .from("user_profiles")
+    .select("user_id,full_name,role,is_active,created_at")
+    .order("created_at", { ascending: false });
+  if (pErr) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:15px;text-align:center;color:#991b1b;">Gagal memuat pengguna: ${esc(pErr.message)}</td></tr>`;
+    $("userCount").textContent = "Gagal memuat.";
+    return;
+  }
+
+  const { data: userStores, error: usErr } = await client
+    .from("user_store_access")
+    .select("user_id,location_id");
+  if (usErr) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:15px;text-align:center;color:#991b1b;">Gagal memuat store pengguna: ${esc(usErr.message)}</td></tr>`;
+    $("userCount").textContent = "Gagal memuat.";
+    return;
+  }
+
+  const storeMap = {};
+  (userStores || []).forEach(r => {
+    storeMap[r.user_id] = storeMap[r.user_id] || [];
+    const s = storeCache.find(x => x.id === r.location_id);
+    storeMap[r.user_id].push(s ? (s.code + " - " + s.name) : r.location_id);
+  });
+
+  const list = profiles || [];
+  $("userCount").textContent = `${list.length} pengguna`;
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:15px;text-align:center;">Belum ada pengguna.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(u => {
+    const stores = (storeMap[u.user_id] || []).join("<br>") || "—";
+    const roleCls = u.role === "master_admin" ? "role" : "off";
+    // Tombol Atur Hak Akses hanya untuk karyawan
+    const permCell = u.role === "employee"
+      ? `<button data-perm-user="${u.user_id}" data-perm-name="${esc(u.full_name || u.user_id)}">Atur Hak Akses</button>`
+      : `<span class="muted">${u.role === "store_admin" ? "Akses penuh store" : "Penuh"}</span>`;
+
+    return `<tr>
+      <td><b>${esc(u.full_name || "—")}</b></td>
+      <td>${esc(u.user_id)}</td>
+      <td><span class="pill ${roleCls}">${esc(roleLabel(u.role))}</span></td>
+      <td>${stores}</td>
+      <td><span class="pill ${u.is_active ? "" : "off"}">${u.is_active ? "Aktif" : "Nonaktif"}</span></td>
+      <td>${permCell}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- Tahap 3: Panel Hak Akses per Store ---------- */
+
+async function openPermissionPanel(userId, userName) {
+  selectedPermissionUserId = userId;
+  $("permPanel").style.display = "block";
+  $("permUserName").textContent = userName;
+
+  const locationSelect = $("permLocation");
+  const box = $("permCheckboxes");
+
+  locationSelect.innerHTML = '<option value="">Memuat store...</option>';
+  box.innerHTML = '<span class="muted">Memuat hak akses...</span>';
+
+  try {
+    const { data, error } = await client
+      .from("user_store_access")
+      .select("location_id")
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    const assignedIds = (data || []).map(x => x.location_id);
+    const assignedStores = storeCache.filter(s =>
+      assignedIds.includes(s.id)
+    );
+
+    if (!assignedStores.length) {
+      locationSelect.innerHTML = '<option value="">Tidak ada store</option>';
+      box.innerHTML = '<span class="muted">Pengguna belum memiliki penugasan store.</span>';
+      $("permPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    locationSelect.innerHTML = assignedStores.map(s => `
+      <option value="${s.id}">
+        ${esc(s.code + " - " + s.name)}
+      </option>
+    `).join("");
+
+    await loadPermissionForLocation();
+
+  } catch (e) {
+    box.innerHTML = "";
+    notify("Gagal membuka panel hak akses: " + e.message, "err");
+  }
+
+  $("permPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadPermissionForLocation() {
+  if (!selectedPermissionUserId) return;
+
+  const locationId = $("permLocation").value;
+  const box = $("permCheckboxes");
+
+  if (!locationId) {
+    box.innerHTML = '<span class="muted">Pilih store terlebih dahulu.</span>';
+    return;
+  }
+
+  box.innerHTML = '<span class="muted">Memuat hak akses...</span>';
+
+  try {
+    const { data, error } = await client.rpc(
+      "rms_admin_get_user_feature_permissions",
+      {
+        p_user_id: selectedPermissionUserId,
+        p_location_id: locationId
+      }
+    );
+
+    if (error) throw error;
+
+    const allowed = new Set(
+      (data || [])
+        .filter(x => x.allowed)
+        .map(x => x.feature_key)
+    );
+
+    box.innerHTML = FEATURES.map(f => {
+      const isMasterOnly = f.key === "master_barang";
+      return `
+        <label class="${isMasterOnly ? "disabled" : ""}">
+          <input
+            type="checkbox"
+            data-feature="${f.key}"
+            ${allowed.has(f.key) ? "checked" : ""}
+            ${isMasterOnly ? "disabled" : ""}
+          >
+          <span>${esc(f.label)}${isMasterOnly ? " (Khusus Master Admin)" : ""}</span>
+        </label>
+      `;
+    }).join("");
+
+  } catch (e) {
+    box.innerHTML = "";
+    notify("Gagal memuat hak akses: " + e.message, "err");
+  }
+}
+
+function closePermissionPanel() {
+  selectedPermissionUserId = null;
+  $("permPanel").style.display = "none";
+}
+
+async function saveUserPermissions() {
+  if (!selectedPermissionUserId) return;
+
+  if (currentProfile?.role !== "master_admin") {
+    notify("Hanya Master Admin yang dapat mengubah hak akses.", "err");
+    return;
+  }
+
+  const locationId = $("permLocation").value;
+
+  if (!locationId) {
+    notify("Pilih store terlebih dahulu.", "err");
+    return;
+  }
+
+  const checks = Array.from(
+    document.querySelectorAll("#permCheckboxes input[type=checkbox]")
+  )
+  .filter(cb => cb.dataset.feature !== "master_barang")
+  .map(cb => ({
+    feature_key: cb.dataset.feature,
+    allowed: cb.checked
+  }));
+
+  try {
+    for (const item of checks) {
+      const { error } = await client.rpc(
+        "rms_admin_set_user_feature_permission",
+        {
+          p_user_id: selectedPermissionUserId,
+          p_location_id: locationId,
+          p_feature_key: item.feature_key,
+          p_is_allowed: item.allowed
+        }
+      );
+
+      if (error) throw error;
+    }
+
+    notify("Hak akses berhasil disimpan untuk store yang dipilih.", "ok");
+
+  } catch (e) {
+    notify("Gagal menyimpan hak akses: " + e.message, "err");
+  }
+}
+
+
+/* =========================================================
+   Master Barang (tidak diubah)
+   ========================================================= */
 function resetForm() {
   $("productForm").reset();
   $("productId").value = "";
@@ -396,18 +873,11 @@ async function loadProducts() {
 
   const barcodeMap = {};
   (b.data || []).forEach(x => { barcodeMap[x.product_id] = x.barcode; });
-
   const stockMap = {};
   (s.data || []).forEach(x => {
     stockMap[x.product_id] = (stockMap[x.product_id] || 0) + Number(x.qty || 0);
   });
-
-  products = (p.data || []).map(x => ({
-    ...x,
-    barcode: barcodeMap[x.id] || "",
-    stok: stockMap[x.id] || 0
-  }));
-
+  products = (p.data || []).map(x => ({ ...x, barcode: barcodeMap[x.id] || "", stok: stockMap[x.id] || 0 }));
   renderProducts();
 }
 
@@ -529,6 +999,14 @@ async function init() {
             notify(e.message || "Gagal memuat data Barang Datang.", "err");
           }
         }
+        if (session && $("userPage").style.display === "block" && currentProfile) {
+          try {
+            await loadStoreCheckboxes();
+            await loadUserList();
+          } catch (e) {
+            notify(e.message || "Gagal memuat data Manajemen Pengguna.", "err");
+          }
+        }
       });
     }, 0);
   });
@@ -582,9 +1060,18 @@ $("rows").addEventListener("click", e => {
   if (toggle) toggleProduct(toggle);
 });
 
+$("inviteForm").addEventListener("submit", submitInvite);
+$("inviteResetBtn").addEventListener("click", resetInviteForm);
+$("userRows").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-perm-user]");
+  if (!btn) return;
+  openPermissionPanel(btn.dataset.permUser, btn.dataset.permName);
+});
+
 
 // ======================================
 // MODUL BARANG DATANG - RMS v6
+// (tidak diubah)
 // ======================================
 
 let bdSelectedProduct = null;
@@ -594,70 +1081,6 @@ let bdSavedProductIds = new Set();
 let bdIsSaved = false;
 let bdIsPosted = false;
 let bdLookupCache = { locations: [], suppliers: [] };
-
-async function openPurchase() {
-  if (!["master_admin", "store_admin"].includes(currentProfile?.role)) {
-    notify("Menu Barang Datang hanya dapat diakses Master Admin dan Admin Store.", "err");
-    return;
-  }
-  $("dashboard").style.display = "none";
-  $("masterPage").style.display = "none";
-  $("purchasePage").style.display = "block";
-  window.scrollTo(0, 0);
-
-  if (!client) { notify("Koneksi database belum tersedia.", "err"); return; }
-
-  try {
-    await bdLoadLookups();
-    await bdLoadDrafts();
-    if (!bdCurrentDocumentId) bdResetForm();
-  } catch (e) {
-    notify("Gagal memuat data awal Barang Datang: " + e.message, "err");
-  }
-}
-
-function backPurchaseToMenu() {
-  $("purchasePage").style.display = "none";
-  $("masterPage").style.display = "none";
-  $("dashboard").style.display = "block";
-  window.scrollTo(0, 0);
-}
-
-function bdStartNew() {
-  bdResetForm();
-  $("bdFormTitle").textContent = "Informasi Penerimaan — Dokumen Baru";
-  $("bdCancelEditButton").style.display = "none";
-  $("bdStatus").textContent = "Dokumen baru. Isi data lalu Simpan Draft.";
-  notify("Form baru siap. Silakan isi penerimaan barang.", "ok");
-  document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
-}
-
-function bdResetForm() {
-  bdSelectedProduct = null;
-  bdCart = [];
-  bdCurrentDocumentId = null;
-  bdSavedProductIds = new Set();
-  bdIsSaved = false;
-  bdIsPosted = false;
-
-  ["bdReference","bdSender","bdReceiver","bdNotes",
-   "bdBarcode","bdQty","bdCost"].forEach(id => { $(id).value = ""; });
-
-  $("bdDate").value = new Date().toLocaleDateString("en-CA");
-  $("bdLocation").value = "";
-  $("bdSupplier").value = "";
-
-  ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
-
-  $("bdProductInfo").textContent = "Belum ada barang dipilih.";
-  $("bdAddButton").disabled = true;
-  $("bdPostButton").disabled = true;
-  $("bdSaveButton").disabled = false;
-  $("bdSaveButton").textContent = "Simpan Draft";
-  $("bdStatus").textContent = "Dokumen belum dibuat.";
-
-  bdRenderCart();
-}
 
 async function bdLoadLookups() {
   const locationSelect = $("bdLocation");
@@ -692,11 +1115,8 @@ async function bdLoadDrafts() {
   $("bdDraftCount").textContent = "Memuat draft…";
 
   if (!bdLookupCache.suppliers.length || !bdLookupCache.locations.length) {
-    try {
-      await bdLoadLookups();
-    } catch (e) {
-      notify("Gagal memuat supplier/lokasi: " + e.message, "err");
-    }
+    try { await bdLoadLookups(); }
+    catch (e) { notify("Gagal memuat supplier/lokasi: " + e.message, "err"); }
   }
 
   const { data, error } = await client
@@ -723,20 +1143,12 @@ async function bdLoadDrafts() {
   tbody.innerHTML = list.map(d => {
     const sup = bdLookupCache.suppliers.find(s => s.id === d.supplier_id);
     const loc = bdLookupCache.locations.find(l => l.id === d.location_id);
-
-    const supLabel = sup
-      ? sup.supplier_code + " - " + sup.supplier_name
-      : (d.supplier_id || "—");
-    const locLabel = loc
-      ? loc.code + " - " + loc.name
-      : (d.location_id || "—");
+    const supLabel = sup ? sup.supplier_code + " - " + sup.supplier_name : (d.supplier_id || "—");
+    const locLabel = loc ? loc.code + " - " + loc.name : (d.location_id || "—");
 
     const shortId = String(d.id).slice(0, 6).toUpperCase();
     const datePart = (d.received_at || d.created_at || "").slice(0, 10).replace(/-/g, "");
-    const shortLabel = d.reference_no
-      ? d.reference_no
-      : `BD-${datePart || "00000000"}-${shortId}`;
-
+    const shortLabel = d.reference_no ? d.reference_no : `BD-${datePart || "00000000"}-${shortId}`;
     const isActive = bdCurrentDocumentId === d.id;
 
     return `<tr class="draft-row ${isActive ? "active" : ""}" data-draft-id="${d.id}">
@@ -756,25 +1168,12 @@ async function bdLoadDraft(docId) {
     notify("Memuat draft…", "ok");
 
     const { data: doc, error: docErr } = await client
-      .from("stock_documents")
-      .select("*")
-      .eq("id", docId)
-      .maybeSingle();
+      .from("stock_documents").select("*").eq("id", docId).maybeSingle();
     if (docErr) throw docErr;
 
-    if (!doc) {
-      notify("Dokumen tidak ditemukan atau Anda tidak memiliki akses.", "err");
-      return;
-    }
-
-    if (doc.status === "posted") {
-      notify("Dokumen sudah diposting, tidak bisa diedit.", "err");
-      return;
-    }
-    if (doc.status !== "draft") {
-      notify("Dokumen tidak dapat diedit (status: " + doc.status + ").", "err");
-      return;
-    }
+    if (!doc) { notify("Dokumen tidak ditemukan atau Anda tidak memiliki akses.", "err"); return; }
+    if (doc.status === "posted") { notify("Dokumen sudah diposting, tidak bisa diedit.", "err"); return; }
+    if (doc.status !== "draft") { notify("Dokumen tidak dapat diedit (status: " + doc.status + ").", "err"); return; }
 
     const { data: { user } } = await client.auth.getUser();
     const ownerField = doc.user_id ?? doc.created_by ?? null;
@@ -793,9 +1192,7 @@ async function bdLoadDraft(docId) {
     let productMap = {};
     if (productIds.length) {
       const { data: prods, error: prodErr } = await client
-        .from("products")
-        .select("id,sku,name")
-        .in("id", productIds);
+        .from("products").select("id,sku,name").in("id", productIds);
       if (prodErr) throw prodErr;
       (prods || []).forEach(p => productMap[p.id] = p);
     }
@@ -804,7 +1201,6 @@ async function bdLoadDraft(docId) {
     bdIsSaved = true;
     bdIsPosted = false;
     bdSavedProductIds = new Set((items || []).map(i => i.product_id));
-
     bdCart = (items || []).map(i => ({
       product_id: i.product_id,
       sku: productMap[i.product_id]?.sku || "—",
@@ -829,7 +1225,6 @@ async function bdLoadDraft(docId) {
     $("bdCancelEditButton").style.display = "inline-block";
 
     ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
-
     bdSelectedProduct = null;
     $("bdAddButton").disabled = true;
     $("bdProductInfo").textContent = "Belum ada barang dipilih. Scan barcode/SKU baru untuk menambah item.";
@@ -848,36 +1243,28 @@ async function bdLoadDraft(docId) {
 
 async function bdFindProduct() {
   if (bdIsPosted) return;
-
   const keyword = $("bdBarcode").value.trim();
   if (!keyword) { notify("Masukkan barcode atau SKU terlebih dahulu.", "err"); return; }
 
   const findButton = $("bdFindButton");
   findButton.disabled = true;
   findButton.textContent = "Mencari...";
-
   try {
     let product = null;
-
-    const skuResult = await client
-      .from("products")
+    const skuResult = await client.from("products")
       .select("id,sku,name,purchase_price,selling_price,is_active")
       .eq("sku", keyword).eq("is_active", true).maybeSingle();
     if (skuResult.error) throw skuResult.error;
     product = skuResult.data;
 
     if (!product) {
-      const barcodeResult = await client
-        .from("product_barcodes").select("product_id")
-        .eq("barcode", keyword).maybeSingle();
+      const barcodeResult = await client.from("product_barcodes")
+        .select("product_id").eq("barcode", keyword).maybeSingle();
       if (barcodeResult.error) throw barcodeResult.error;
-
       if (barcodeResult.data) {
-        const productResult = await client
-          .from("products")
+        const productResult = await client.from("products")
           .select("id,sku,name,purchase_price,selling_price,is_active")
-          .eq("id", barcodeResult.data.product_id)
-          .eq("is_active", true).maybeSingle();
+          .eq("id", barcodeResult.data.product_id).eq("is_active", true).maybeSingle();
         if (productResult.error) throw productResult.error;
         product = productResult.data;
       }
@@ -889,7 +1276,6 @@ async function bdFindProduct() {
       $("bdProductInfo").textContent = "Barang tidak ditemukan di Master Barang.";
       return;
     }
-
     bdSelectedProduct = product;
     $("bdProductInfo").textContent = product.sku + " - " + product.name;
     $("bdCost").value = product.purchase_price ?? 0;
@@ -906,31 +1292,19 @@ async function bdFindProduct() {
 function bdAddToCart() {
   if (bdIsPosted) return;
   if (!bdSelectedProduct) { notify("Cari barang terlebih dahulu.", "err"); return; }
-
   const qty = Number($("bdQty").value);
   const cost = Number($("bdCost").value);
-
   if (!Number.isFinite(qty) || qty <= 0) { notify("Qty harus lebih dari 0.", "err"); return; }
   if (!Number.isFinite(cost) || cost < 0) { notify("Harga beli tidak boleh negatif.", "err"); return; }
 
   const existingIndex = bdCart.findIndex(item => item.product_id === bdSelectedProduct.id);
-
   if (existingIndex >= 0) {
     bdCart[existingIndex].qty += qty;
-    notify(
-      `Qty ${bdCart[existingIndex].sku} digabung (total ${bdCart[existingIndex].qty}).`,
-      "ok"
-    );
+    notify(`Qty ${bdCart[existingIndex].sku} digabung (total ${bdCart[existingIndex].qty}).`, "ok");
   } else {
-    bdCart.push({
-      product_id: bdSelectedProduct.id,
-      sku: bdSelectedProduct.sku,
-      name: bdSelectedProduct.name,
-      qty, unit_cost: cost
-    });
+    bdCart.push({ product_id: bdSelectedProduct.id, sku: bdSelectedProduct.sku, name: bdSelectedProduct.name, qty, unit_cost: cost });
     notify(`${bdSelectedProduct.sku} ditambahkan ke keranjang.`, "ok");
   }
-
   bdSelectedProduct = null;
   $("bdBarcode").value = "";
   $("bdQty").value = "";
@@ -957,128 +1331,75 @@ function bdRenderCart() {
   `).join("");
 }
 
-/* =========================================================
-   bdSaveDraft() — v6
-   Memakai RPC atomic rms_save_purchase_draft:
-   header + item disimpan/di-replace dalam satu transaksi.
-   ========================================================= */
 async function bdSaveDraft() {
-  if (bdIsPosted) {
-    notify("Dokumen sudah diposting.", "err");
-    return;
-  }
-
-  if (!bdCart.length) {
-    notify("Masukkan minimal satu barang.", "err");
-    return;
-  }
-
+  if (bdIsPosted) { notify("Dokumen sudah diposting.", "err"); return; }
+  if (!bdCart.length) { notify("Masukkan minimal satu barang.", "err"); return; }
   const locationId = $("bdLocation").value;
   const supplierId = $("bdSupplier").value;
-
-  if (!locationId || !supplierId) {
-    notify("Pilih lokasi dan supplier terlebih dahulu.", "err");
-    return;
-  }
+  if (!locationId || !supplierId) { notify("Pilih lokasi dan supplier terlebih dahulu.", "err"); return; }
 
   const saveButton = $("bdSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Menyimpan...";
-
   try {
     const items = bdCart.map(item => ({
       product_id: item.product_id,
       qty: Number(item.qty),
       unit_cost: Number(item.unit_cost || 0)
     }));
-
-    const { data, error } = await client.rpc(
-      "rms_save_purchase_draft",
-      {
-        p_document_id: bdCurrentDocumentId || null,
-        p_location_id: locationId,
-        p_supplier_id: supplierId,
-        p_reference_no: $("bdReference").value.trim() || null,
-        p_notes: $("bdNotes").value.trim() || null,
-        p_sender_name: $("bdSender").value.trim() || null,
-        p_receiver_name: $("bdReceiver").value.trim() || null,
-        p_received_at: $("bdDate").value || null,
-        p_items: items
-      }
-    );
-
+    const { data, error } = await client.rpc("rms_save_purchase_draft", {
+      p_document_id: bdCurrentDocumentId || null,
+      p_location_id: locationId,
+      p_supplier_id: supplierId,
+      p_reference_no: $("bdReference").value.trim() || null,
+      p_notes: $("bdNotes").value.trim() || null,
+      p_sender_name: $("bdSender").value.trim() || null,
+      p_receiver_name: $("bdReceiver").value.trim() || null,
+      p_received_at: $("bdDate").value || null,
+      p_items: items
+    });
     if (error) throw error;
 
     bdCurrentDocumentId = data;
     bdIsSaved = true;
-    bdSavedProductIds = new Set(
-      bdCart.map(item => item.product_id)
-    );
+    bdSavedProductIds = new Set(bdCart.map(item => item.product_id));
 
-    $("bdStatus").textContent =
-      "Draft tersimpan. ID dokumen: " + bdCurrentDocumentId;
-
+    $("bdStatus").textContent = "Draft tersimpan. ID dokumen: " + bdCurrentDocumentId;
     $("bdPostButton").disabled = false;
     $("bdSaveButton").textContent = "Simpan Perubahan";
     $("bdCancelEditButton").style.display = "inline-block";
-
     notify("Draft Barang Datang berhasil disimpan.", "ok");
-
     await bdLoadDrafts();
-
   } catch (error) {
     console.error("Gagal menyimpan draft Barang Datang:", error);
-
-    $("bdStatus").textContent =
-      "Draft belum berhasil disimpan. Dokumen: " +
-      (bdCurrentDocumentId || "belum dibuat") + ".";
-
-    notify(
-      "Gagal menyimpan draft: " + error.message +
-      (bdCurrentDocumentId
-        ? " (ID: " + bdCurrentDocumentId + ")"
-        : ""),
-      "err"
-    );
-
+    $("bdStatus").textContent = "Draft belum berhasil disimpan. Dokumen: " + (bdCurrentDocumentId || "belum dibuat") + ".";
+    notify("Gagal menyimpan draft: " + error.message + (bdCurrentDocumentId ? " (ID: " + bdCurrentDocumentId + ")" : ""), "err");
   } finally {
     saveButton.disabled = bdIsPosted;
-    if (!bdIsPosted) {
-      saveButton.textContent = bdIsSaved
-        ? "Simpan Perubahan"
-        : "Simpan Draft";
-    }
+    if (!bdIsPosted) saveButton.textContent = bdIsSaved ? "Simpan Perubahan" : "Simpan Draft";
   }
 }
 
 async function bdPostDocument() {
-  if (!bdCurrentDocumentId || !bdIsSaved) {
-    notify("Simpan draft terlebih dahulu.", "err"); return;
-  }
+  if (!bdCurrentDocumentId || !bdIsSaved) { notify("Simpan draft terlebih dahulu.", "err"); return; }
   if (bdIsPosted) { notify("Dokumen sudah diposting.", "err"); return; }
   if (!confirm("Posting Barang Datang sekarang?\nStok akan langsung bertambah dan dokumen tidak bisa diedit lagi.")) return;
 
   const postButton = $("bdPostButton");
   postButton.disabled = true;
   postButton.textContent = "Memproses...";
-
   try {
-    const result = await client.rpc("rms_post_stock_document", {
-      p_document_id: bdCurrentDocumentId
-    });
+    const result = await client.rpc("rms_post_stock_document", { p_document_id: bdCurrentDocumentId });
     if (result.error) throw result.error;
 
     bdIsPosted = true;
     notify(result.data || "Barang Datang berhasil diposting.", "ok");
-
     ["bdBarcode","bdQty","bdCost","bdFindButton","bdAddButton","bdSaveButton"].forEach(id => { $(id).disabled = true; });
-
     $("bdStatus").textContent = "Dokumen sudah diposting. Tidak dapat diedit.";
     $("bdCancelEditButton").style.display = "inline-block";
 
     await bdLoadDrafts();
     await loadProducts();
-
     setTimeout(() => {
       bdStartNew();
       $("bdStatus").textContent = "Posting selesai. Form baru siap digunakan.";
@@ -1091,6 +1412,38 @@ async function bdPostDocument() {
   }
 }
 
+function bdStartNew() {
+  bdResetForm();
+  $("bdFormTitle").textContent = "Informasi Penerimaan — Dokumen Baru";
+  $("bdCancelEditButton").style.display = "none";
+  $("bdStatus").textContent = "Dokumen baru. Isi data lalu Simpan Draft.";
+  notify("Form baru siap. Silakan isi penerimaan barang.", "ok");
+  document.querySelectorAll("#bdDraftRows tr").forEach(tr => tr.classList.remove("active"));
+}
+
+function bdResetForm() {
+  bdSelectedProduct = null;
+  bdCart = [];
+  bdCurrentDocumentId = null;
+  bdSavedProductIds = new Set();
+  bdIsSaved = false;
+  bdIsPosted = false;
+
+  ["bdReference","bdSender","bdReceiver","bdNotes","bdBarcode","bdQty","bdCost"].forEach(id => { $(id).value = ""; });
+  $("bdDate").value = new Date().toLocaleDateString("en-CA");
+  $("bdLocation").value = "";
+  $("bdSupplier").value = "";
+
+  ["bdBarcode","bdQty","bdCost","bdFindButton"].forEach(id => { $(id).disabled = false; });
+  $("bdProductInfo").textContent = "Belum ada barang dipilih.";
+  $("bdAddButton").disabled = true;
+  $("bdPostButton").disabled = true;
+  $("bdSaveButton").disabled = false;
+  $("bdSaveButton").textContent = "Simpan Draft";
+  $("bdStatus").textContent = "Dokumen belum dibuat.";
+  bdRenderCart();
+}
+
 document.getElementById("bdCartRows").addEventListener("click", e => {
   const idx = e.target.dataset.bdRemove;
   if (idx === undefined) return;
@@ -1101,11 +1454,7 @@ document.getElementById("bdCartRows").addEventListener("click", e => {
 
 document.getElementById("bdDraftRows").addEventListener("click", e => {
   const btn = e.target.closest("button[data-load-draft]");
-  if (btn) {
-    e.stopPropagation();
-    bdLoadDraft(btn.dataset.loadDraft);
-    return;
-  }
+  if (btn) { e.stopPropagation(); bdLoadDraft(btn.dataset.loadDraft); return; }
   const row = e.target.closest("tr[data-draft-id]");
   if (row) bdLoadDraft(row.dataset.draftId);
 });
