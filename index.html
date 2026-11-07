@@ -72,6 +72,21 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 }
 .perm-grid input[type="checkbox"] { width:auto; }
 
+/* ===== Halaman Aktivasi Akun ===== */
+#activation {
+  display: none;
+  max-width: 420px;
+  margin: 8vh auto;
+}
+
+#activation input {
+  margin-bottom: 12px;
+}
+
+#activation .actions button {
+  width: 100%;
+}
+
 @media(max-width:700px) { .menu-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:400px) { .menu-grid { grid-template-columns:1fr; } }
 </style>
@@ -93,6 +108,42 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
       <label>Password</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
       <div class="actions"><button class="primary" type="submit" id="loginBtn">Masuk</button></div>
+    </form>
+  </section>
+
+  <!-- ===== HALAMAN AKTIVASI AKUN (setelah klik undangan) ===== -->
+  <section id="activation" class="panel login">
+    <h2>Aktivasi Akun RMS</h2>
+    <p class="muted">
+      Selamat datang. Silakan buat password baru untuk akun RMS kamu.
+    </p>
+
+    <form id="activationForm">
+      <label>Password Baru</label>
+      <input
+        id="newPassword"
+        type="password"
+        minlength="8"
+        autocomplete="new-password"
+        placeholder="Minimal 8 karakter"
+        required
+      >
+
+      <label>Konfirmasi Password</label>
+      <input
+        id="confirmPassword"
+        type="password"
+        minlength="8"
+        autocomplete="new-password"
+        placeholder="Ulangi password"
+        required
+      >
+
+      <div class="actions">
+        <button class="primary" type="submit" id="activationBtn">
+          Buat Password
+        </button>
+      </div>
     </form>
   </section>
 
@@ -180,7 +231,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
       </section>
     </div>
 
-    <!-- ===== HALAMAN MANAJEMEN PENGGUNA ===== -->
     <div id="userPage">
       <button class="back-button" onclick="backToMenu()">← Kembali ke Menu Utama</button>
 
@@ -245,7 +295,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         </div>
       </section>
 
-      <!-- Panel Hak Akses Fitur -->
       <section class="panel" id="permPanel" style="display:none;">
         <h2>Hak Akses Fitur — <span id="permUserName">—</span></h2>
         <p class="muted">
@@ -253,7 +302,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
           di database dan tetap diperiksa di server, bukan hanya disembunyikan di UI.
         </p>
 
-        <!-- Pilihan Store -->
         <div style="max-width:360px;margin:14px 0;">
           <label for="permLocation">Pilih Store</label>
           <select id="permLocation" onchange="loadPermissionForLocation()">
@@ -364,6 +412,7 @@ let products = [], categories = [], units = [];
 let currentProfile = null;
 let activeSessionUserId = null;
 let storeCache = [];
+let inviteActivationPending = false;  // ← Tahap 2A
 
 const $ = id => document.getElementById(id);
 
@@ -416,6 +465,7 @@ function applyRoleUI() {
 
 function showApp(user) {
   $("login").style.display = "none";
+  $("activation").style.display = "none";
   $("app").style.display = "block";
   $("logout").style.display = "inline-block";
   $("who").textContent = `${currentProfile?.full_name || user.email || "Pengguna"} · ${roleLabel(currentProfile?.role)}`;
@@ -447,29 +497,150 @@ function clearAppSession() {
   $("masterPage").style.display = "none";
   $("userPage").style.display = "none";
   $("purchasePage").style.display = "none";
+  $("activation").style.display = "none";  // ← Tahap 4
   $("login").style.display = "block";
   $("logout").style.display = "none";
   $("who").textContent = "";
 }
 
-async function handleAuthenticatedSession(session) {
-  if (!session?.user) { clearAppSession(); return; }
-  if (activeSessionUserId === session.user.id && currentProfile) return;
+/* =========================================================
+   AKTIVASI AKUN — Tahap 2B
+   ========================================================= */
+function isInviteCallback() {
+  const hashParams = new URLSearchParams(
+    window.location.hash.replace(/^#/, "")
+  );
+  const queryParams = new URLSearchParams(
+    window.location.search
+  );
+  return (
+    hashParams.get("type") === "invite" ||
+    queryParams.get("type") === "invite"
+  );
+}
+
+function showActivationPage() {
+  inviteActivationPending = true;
+
+  $("login").style.display = "none";
+  $("app").style.display = "none";
+  $("activation").style.display = "block";
+  $("logout").style.display = "none";
+
+  $("who").textContent = "";
+  window.scrollTo(0, 0);
+}
+
+/* =========================================================
+   handleAuthenticatedSession — Tahap 2C
+   ========================================================= */
+async function handleAuthenticatedSession(session, eventName) {
+  if (!session?.user) {
+    clearAppSession();
+    return;
+  }
+
+  // Periksa apakah pengguna baru saja mengonfirmasi undangan.
+  if (isInviteCallback() || inviteActivationPending) {
+    showActivationPage();
+    return;
+  }
+
+  if (activeSessionUserId === session.user.id && currentProfile) {
+    return;
+  }
+
   try {
     await loadCurrentProfile(session.user);
+
+    $("activation").style.display = "none";
+
     showApp(session.user);
+
     $("dashboard").style.display = "block";
     $("masterPage").style.display = "none";
     $("userPage").style.display = "none";
     $("purchasePage").style.display = "none";
+
     await loadLookups();
     await loadProducts();
+
   } catch (e) {
     clearAppSession();
     notify(e.message || "Gagal memuat profil pengguna.", "err");
   }
 }
 
+/* =========================================================
+   handleActivationSubmit — Tahap 2D
+   ========================================================= */
+async function handleActivationSubmit(e) {
+  e.preventDefault();
+
+  const password = $("newPassword").value;
+  const confirmPassword = $("confirmPassword").value;
+  const button = $("activationBtn");
+
+  if (password.length < 8) {
+    notify("Password minimal 8 karakter.", "err");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    notify("Konfirmasi password tidak sama.", "err");
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Menyimpan...";
+
+  try {
+    const { data, error } = await client.auth.updateUser({
+      password: password
+    });
+
+    if (error) throw error;
+
+    if (!data.user) {
+      throw new Error("Gagal memperbarui akun pengguna.");
+    }
+
+    inviteActivationPending = false;
+
+    // Bersihkan token undangan dari alamat browser.
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+
+    $("newPassword").value = "";
+    $("confirmPassword").value = "";
+
+    notify("Password berhasil dibuat. Selamat datang di RMS.", "ok");
+
+    const { data: sessionData, error: sessionError } =
+      await client.auth.getSession();
+
+    if (sessionError) throw sessionError;
+
+    await handleAuthenticatedSession(sessionData.session);
+
+  } catch (error) {
+    notify(
+      error.message || "Gagal menyimpan password.",
+      "err"
+    );
+
+  } finally {
+    button.disabled = false;
+    button.textContent = "Buat Password";
+  }
+}
+
+/* =========================================================
+   Navigasi halaman
+   ========================================================= */
 function openMaster() {
   if (currentProfile?.role !== "master_admin") {
     notify("Menu Master Barang hanya dapat diakses Master Admin.", "err");
@@ -506,13 +677,27 @@ function backToMenu() {
   window.scrollTo(0, 0);
 }
 
+/* =========================================================
+   PERBAIKAN: backPurchaseToMenu
+   Sebelumnya fungsi ini ada di dalam modul Barang Datang tapi
+   tidak dideklarasikan dengan benar / tertimpa. Sekarang
+   dideklarasikan eksplisit dan menyembunyikan semua panel
+   kecuali #dashboard.
+   ========================================================= */
+function backPurchaseToMenu() {
+  $("purchasePage").style.display = "none";
+  $("masterPage").style.display = "none";
+  $("userPage").style.display = "none";
+  $("dashboard").style.display = "block";
+  window.scrollTo(0, 0);
+}
+
 function comingSoon(menu) { notify("Menu " + menu + " akan dibuat pada tahap berikutnya."); }
 
 
 /* =========================================================
-   MANAJEMEN PENGGUNA — Tahap 1, 2 & 3
+   MANAJEMEN PENGGUNA
    ========================================================= */
-
 async function openUserManagement() {
   if (currentProfile?.role !== "master_admin") {
     notify("Menu Manajemen Pengguna hanya dapat diakses Master Admin.", "err");
@@ -530,8 +715,6 @@ async function openUserManagement() {
     notify("Gagal memuat data Manajemen Pengguna: " + e.message, "err");
   }
 }
-
-/* ---------- Tahap 1: Form Undangan ---------- */
 
 async function loadStoreCheckboxes() {
   const box = $("invStoreList");
@@ -620,8 +803,6 @@ async function submitInvite(e) {
   }
 }
 
-/* ---------- Tahap 2: Daftar Pengguna ---------- */
-
 let selectedPermissionUserId = null;
 
 async function loadUserList() {
@@ -666,7 +847,6 @@ async function loadUserList() {
   tbody.innerHTML = list.map(u => {
     const stores = (storeMap[u.user_id] || []).join("<br>") || "—";
     const roleCls = u.role === "master_admin" ? "role" : "off";
-    // Tombol Atur Hak Akses hanya untuk karyawan
     const permCell = u.role === "employee"
       ? `<button data-perm-user="${u.user_id}" data-perm-name="${esc(u.full_name || u.user_id)}">Atur Hak Akses</button>`
       : `<span class="muted">${u.role === "store_admin" ? "Akses penuh store" : "Penuh"}</span>`;
@@ -681,8 +861,6 @@ async function loadUserList() {
     </tr>`;
   }).join("");
 }
-
-/* ---------- Tahap 3: Panel Hak Akses per Store ---------- */
 
 async function openPermissionPanel(userId, userName) {
   selectedPermissionUserId = userId;
@@ -835,7 +1013,7 @@ async function saveUserPermissions() {
 
 
 /* =========================================================
-   Master Barang (tidak diubah)
+   MASTER BARANG
    ========================================================= */
 function resetForm() {
   $("productForm").reset();
@@ -982,15 +1160,24 @@ async function toggleProduct(id) {
   await loadProducts();
 }
 
+/* =========================================================
+   init — Tahap 3
+   ========================================================= */
 async function init() {
   if (!configured) {
     notify("Konfigurasi Supabase belum diisi. Periksa SUPABASE_URL dan SUPABASE_ANON_KEY.", "err");
     return;
   }
 
-  client.auth.onAuthStateChange((_event, session) => {
+  // Tahap 3 — daftarkan form aktivasi
+  $("activationForm").addEventListener(
+    "submit",
+    handleActivationSubmit
+  );
+
+  client.auth.onAuthStateChange((event, session) => {   // ← Tahap 3: tambah `event`
     window.setTimeout(() => {
-      handleAuthenticatedSession(session).then(async () => {
+      handleAuthenticatedSession(session, event).then(async () => {  // ← Tahap 3: kirim event
         if (session && $("purchasePage").style.display === "block" && currentProfile) {
           try {
             await bdLoadLookups();
@@ -1071,7 +1258,6 @@ $("userRows").addEventListener("click", e => {
 
 // ======================================
 // MODUL BARANG DATANG - RMS v6
-// (tidak diubah)
 // ======================================
 
 let bdSelectedProduct = null;
