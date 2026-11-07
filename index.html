@@ -737,6 +737,7 @@ function resetInviteForm() {
 
 /* =========================================================
    submitInvite — Buat pengguna dengan password langsung
+   + error handling yang menampilkan pesan asli Edge Function
    ========================================================= */
 async function submitInvite(e) {
   e.preventDefault();
@@ -803,10 +804,27 @@ async function submitInvite(e) {
     await loadUserList();
 
   } catch (err) {
-    notify(
-      "Gagal membuat pengguna: " + (err.message || String(err)),
-      "err"
-    );
+    let errorMessage = err.message || String(err);
+
+    // Ambil pesan asli dari respons Edge Function
+    if (err.context) {
+      try {
+        const responseBody = await err.context.clone().json();
+
+        errorMessage =
+          responseBody.message ||
+          responseBody.error ||
+          errorMessage;
+
+        console.error("Detail error Edge Function:", responseBody);
+      } catch (parseError) {
+        console.error("Error context:", err.context);
+      }
+    }
+
+    console.error("RMS create user error:", err);
+
+    notify("Gagal membuat pengguna: " + errorMessage, "err");
   } finally {
     btn.disabled = false;
     btn.textContent = "Buat Pengguna";
