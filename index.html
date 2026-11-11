@@ -87,6 +87,26 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
 
 @media(max-width:700px) { .menu-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:400px) { .menu-grid { grid-template-columns:1fr; } }
+
+.pill.cancelled{background:#fee2e2;color:#991b1b}
+.history-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.history-tabs button.active{background:#1764c0;color:#fff}
+.stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.stat-card{border:1px solid #e5eaf1;border-radius:10px;padding:12px;background:#f8fafc}
+.stat-card b{display:block;font-size:22px}
+.csv-preview{max-height:340px;overflow:auto;border:1px solid #e5eaf1;border-radius:8px;margin-top:12px}
+.csv-preview table{min-width:650px}
+/* Riwayat Surat Jalan: compact dan nyaman */
+#bdDraftPanel{padding:16px}
+#bdDraftPanel table{min-width:1120px}
+#bdDraftPanel th,#bdDraftPanel td{padding:8px 9px;font-size:12px;white-space:nowrap}
+#bdDraftPanel .history-actions{display:flex;gap:5px;flex-wrap:nowrap}
+#bdDraftPanel .history-actions button{padding:6px 9px;font-size:11px;border-radius:6px}
+#bdHistoryPagination{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:#64748b}
+#bdHistoryPagination .page-actions{display:flex;gap:6px;align-items:center}
+#bdHistoryPagination button{padding:7px 11px;font-size:12px}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr 1fr}#bdDraftPanel{padding:12px}}
+
 </style>
 </head>
 <body>
@@ -329,24 +349,35 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
       <div class="panel" id="bdDraftPanel">
         <div class="toolbar">
           <div>
-            <h2 style="margin-bottom:4px">Daftar Surat Jalan (Draft)</h2>
-            <span class="muted" id="bdDraftCount">Memuat draft…</span>
+            <h2 style="margin-bottom:4px">Riwayat Surat Jalan / Barang Datang</h2>
+            <span class="muted" id="bdHistoryCount">Memuat riwayat…</span>
           </div>
-          <button id="bdRefreshDraftBtn" onclick="bdLoadDrafts()">Muat ulang</button>
+          <div class="right" style="flex-wrap:wrap;">
+            <input id="bdHistorySearch" placeholder="Cari dokumen, supplier, lokasi…" oninput="bdHistoryPage=1;bdRenderHistory()">
+            <button id="bdRefreshDraftBtn" onclick="bdLoadHistory()">Muat ulang</button>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="muted">Draft</span><b id="bdStatDraft">—</b></div>
+          <div class="stat-card"><span class="muted">Berhasil</span><b id="bdStatPosted">—</b></div>
+          <div class="stat-card"><span class="muted">Dibatalkan</span><b id="bdStatCancelled">—</b></div>
+        </div>
+        <div class="history-tabs" role="group" aria-label="Filter riwayat">
+          <button type="button" class="active" data-bd-history-filter="all" onclick="bdSetHistoryFilter('all',this)">Semua</button>
+          <button type="button" data-bd-history-filter="draft" onclick="bdSetHistoryFilter('draft',this)">Draft</button>
+          <button type="button" data-bd-history-filter="posted" onclick="bdSetHistoryFilter('posted',this)">Berhasil</button>
+          <button type="button" data-bd-history-filter="cancelled" onclick="bdSetHistoryFilter('cancelled',this)">Dibatalkan</button>
         </div>
         <div class="tablewrap">
           <table>
-            <thead>
-              <tr>
-                <th>Kode Dokumen</th><th>Tanggal</th><th>Supplier</th>
-                <th>Lokasi</th><th>Referensi</th><th>Status</th><th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="bdDraftRows">
-              <tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>
-            </tbody>
+            <thead><tr>
+              <th>No.</th><th>Kode Dokumen</th><th>Tanggal</th><th>No. Surat Jalan</th><th>Supplier</th><th>Lokasi</th><th>Pengirim</th><th>Penerima</th><th>Status</th><th>Aksi</th>
+            </tr></thead>
+            <tbody id="bdDraftRows"><tr><td colspan="10" style="padding:15px;text-align:center;">Memuat…</td></tr></tbody>
           </table>
         </div>
+        <div id="bdHistoryPagination"></div>
+        <div id="bdHistoryDetail" style="display:none;margin-top:14px;"></div>
       </div>
 
       <div class="panel">
@@ -360,6 +391,21 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
           <div><label>Nama Penerima</label><input id="bdReceiver" type="text" placeholder="Nama penerima"></div>
           <div style="grid-column:1/-1;"><label>Catatan</label><textarea id="bdNotes" placeholder="Catatan penerimaan barang" rows="2"></textarea></div>
         </div>
+      </div>
+
+      <div class="panel" id="bdCsvPanel">
+        <h3 style="margin-top:0;">Upload CSV Barang Datang</h3>
+        <p class="muted">Gunakan untuk memasukkan banyak SKU sekaligus. CSV hanya mengisi keranjang dokumen; stok belum bertambah sebelum tombol Posting Barang Datang dijalankan.</p>
+        <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+          <div><label>File CSV</label><input id="bdCsvFile" type="file" accept=".csv,text/csv"></div>
+          <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap;">
+            <button type="button" onclick="bdDownloadCsvTemplate()">Download Template CSV</button>
+            <button type="button" class="primary" id="bdCsvValidateBtn" onclick="bdValidateCsv()">Validasi CSV</button>
+          </div>
+        </div>
+        <div id="bdCsvStatus" class="muted" style="margin-top:10px;">Header wajib: sku atau barcode, dan qty. unit_cost opsional.</div>
+        <div id="bdCsvPreview" class="csv-preview" style="display:none;"></div>
+        <div class="actions"><button type="button" class="success" id="bdCsvApplyBtn" onclick="bdApplyCsvToCart()" disabled>Masukkan ke Keranjang</button></div>
       </div>
 
       <div class="panel">
@@ -395,7 +441,8 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
           <button id="bdSaveButton" class="primary" onclick="bdSaveDraft()">Simpan Draft</button>
           <button id="bdPostButton" class="success" onclick="bdPostDocument()" disabled>Posting Barang Datang</button>
           <button id="bdCancelEditButton" onclick="bdStartNew()" style="display:none;">Batal Edit / Dokumen Baru</button>
-          <button type="button" onclick="bdPrintDocument()">Cetak PDF / Surat Jalan</button>
+          <button type="button" onclick="bdPrintDocument()">Unduh PDF Surat Jalan</button>
+          <button type="button" onclick="bdDownloadCurrentCsv()">Unduh CSV</button>
         </div>
       </div>
     </section>
@@ -851,12 +898,55 @@ async function startPriceCamera(){
 }
 function stopPriceCamera(){if(priceCameraTimer){clearInterval(priceCameraTimer);priceCameraTimer=null;}if(priceCameraStream){priceCameraStream.getTracks().forEach(t=>t.stop());priceCameraStream=null;}const v=$("priceVideo");if(v){v.pause();v.srcObject=null;v.style.display='none';}}
 function previewPromoCsv(){const f=$("promoCsvFile")?.files?.[0];if(!f){notify('Pilih file CSV promo terlebih dahulu.','err');return;}const reader=new FileReader();reader.onload=()=>{const lines=String(reader.result||'').split(/\r?\n/).filter(x=>x.trim());const out=lines.slice(0,21).map(x=>x.split(/[;,]/).map(v=>v.trim()).join(' | '));$("promoCsvPreview").innerHTML='<pre style="white-space:pre-wrap">'+esc(out.join('\n'))+'</pre><p class="muted">'+Math.max(0,lines.length-1)+' baris data terbaca. Belum disimpan ke database.</p>';};reader.readAsText(f);}
-function printHtmlDocument(title,body){const w=window.open('','_blank','width=900,height=700');if(!w){notify('Izinkan pop-up untuk mencetak dokumen.','err');return;}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font:14px Arial;margin:28px;color:#111}h1{text-align:center;font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border:1px solid #555;padding:8px;text-align:left}.sign{display:flex;justify-content:space-around;margin-top:70px;text-align:center}.sign div{width:28%}.line{border-bottom:1px solid #222;margin:60px 10px 8px}@media print{button{display:none}}</style></head><body>${body}<script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
+function printHtmlDocument(title,body){const w=window.open('','_blank','width=900,height=700');if(!w){notify('Izinkan pop-up untuk mencetak / menyimpan PDF.','err');return;}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:16mm}body{font:12px Arial;margin:0;color:#111}h1{text-align:center;font-size:18px;margin:0 0 18px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin:12px 0 18px}.meta>div{padding:7px 0;border-bottom:1px solid #ddd}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{border:1px solid #555;padding:7px;text-align:left;font-size:11px}thead th{background:#f1f5f9}.num{text-align:right}tfoot th{background:#f8fafc}.sign{display:flex;justify-content:space-around;gap:40px;margin-top:48px;text-align:center;break-inside:avoid}.sign div{width:38%}.line{border-bottom:1px solid #222;margin:58px 10px 8px}p{line-height:1.5}@media print{button{display:none}}</style></head><body>${body}<script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
 function printSimpleReport(title,labels){const values=labels.map(x=>`<tr><th>${esc(x)}</th><td style="height:28px"></td></tr>`).join('');printHtmlDocument(title,`<h1>${title}</h1><p>Tanggal: ${new Date().toLocaleString('id-ID')}</p><table>${values}</table><div class="sign"><div><div class="line"></div>Petugas</div><div><div class="line"></div>Pemeriksa</div><div><div class="line"></div>Penanggung Jawab</div></div>`);}
 
 function printReturnForm(){const vals=[['Nomor Struk / Transaksi',$('retReceipt').value],['Barcode / SKU',$('retBarcode').value],['Qty Retur',$('retQty').value],['Alasan Retur',$('retReason').value],['Kondisi Barang',$('retCondition').value],['Refund',$('retRefund').value],['Metode Refund',$('retMethod').value]];const rows=vals.map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v||'')}</td></tr>`).join('');printHtmlDocument('Return & Refund',`<h1>FORM RETURN & REFUND</h1><p>Tanggal cetak: ${new Date().toLocaleString('id-ID')}</p><table>${rows}</table><div class="sign"><div><div class="line"></div>Petugas</div><div><div class="line"></div>Pelanggan</div><div><div class="line"></div>Penanggung Jawab</div></div>`);}
 function printDamageForm(){const loc=$('damageLocation').selectedOptions[0]?.textContent||'';const vals=[['Lokasi',loc],['Barcode / SKU',$('damageBarcode').value],['Qty Rusak',$('damageQty').value],['Alasan',$('damageReason').value]];const rows=vals.map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v||'')}</td></tr>`).join('');printHtmlDocument('Barang Rusak',`<h1>LAPORAN BARANG RUSAK</h1><p>Tanggal cetak: ${new Date().toLocaleString('id-ID')}</p><table>${rows}</table><div class="sign"><div><div class="line"></div>Petugas</div><div><div class="line"></div>Pemeriksa</div><div><div class="line"></div>Penanggung Jawab</div></div>`);}
-function bdPrintDocument(){const loc=bdLookupCache.locations.find(x=>x.id===$("bdLocation").value);const sup=bdLookupCache.suppliers.find(x=>x.id===$("bdSupplier").value);const rows=bdCart.map(x=>`<tr><td>${esc(x.sku)}</td><td>${esc(x.name)}</td><td>${esc(x.qty)}</td><td>${rupiah(x.unit_cost)}</td><td>${rupiah(Number(x.qty)*Number(x.unit_cost))}</td></tr>`).join('');const body=`<h1>FORM PENERIMAAN BARANG / BARANG DATANG</h1><p>Lokasi: ${esc(loc?.name||'')}</p><p>Supplier: ${esc(sup?.supplier_name||'')}</p><p>Referensi: ${esc($("bdReference").value||'')}</p><p>Tanggal: ${esc($("bdDate").value||'')}</p><p>Pengirim: ${esc($("bdSender").value||'')} &nbsp; Penerima: ${esc($("bdReceiver").value||'')}</p><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Harga Beli</th><th>Jumlah</th></tr></thead><tbody>${rows}</tbody></table><p>Catatan: ${esc($("bdNotes").value||'')}</p><div class="sign"><div><div class="line"></div>Pengirim</div><div><div class="line"></div>Penerima</div><div><div class="line"></div>Mengetahui</div></div>`;printHtmlDocument('Barang Datang',body);}
+function bdCsvCell(value){const v=String(value??"");return '"'+v.replace(/"/g,'""')+'"';}
+function bdDownloadCsv(filename, headers, rows){
+  const csv='\ufeff'+[headers,...rows].map(row=>row.map(bdCsvCell).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+function bdSafeFilePart(value){return String(value||'surat-jalan').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,70)||'surat-jalan';}
+function bdDownloadCurrentCsv(){
+  if(!bdCart.length){notify('Tambahkan barang terlebih dahulu sebelum mengunduh CSV.','err');return;}
+  const loc=bdLookupCache.locations.find(x=>x.id===$("bdLocation").value);const sup=bdLookupCache.suppliers.find(x=>x.id===$("bdSupplier").value);
+  const meta=[bdDocLabel({id:bdCurrentDocumentId||'DRAFT',reference_no:$("bdReference").value,received_at:$("bdDate").value}),$("bdDate").value||'',sup?.supplier_name||'',loc?.name||'',$("bdSender").value||'',$("bdReceiver").value||'',bdIsPosted?'posted':'draft'];
+  const rows=bdCart.map(x=>[...meta,x.sku,x.name,x.qty,x.unit_cost,Number(x.qty)*Number(x.unit_cost)]);
+  bdDownloadCsv(`${bdSafeFilePart(meta[0])}.csv`,['kode_dokumen','tanggal','supplier','lokasi','nama_pengirim','nama_penerima','status','sku','nama_barang','qty','harga_beli','jumlah'],rows);
+}
+function bdPrintDocument(){
+  if(!bdCart.length){notify('Tambahkan barang terlebih dahulu sebelum mencetak surat jalan.','err');return;}
+  const loc=bdLookupCache.locations.find(x=>x.id===$("bdLocation").value);const sup=bdLookupCache.suppliers.find(x=>x.id===$("bdSupplier").value);
+  const rows=bdCart.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.sku)}</td><td>${esc(x.name)}</td><td class="num">${esc(x.qty)}</td><td class="num">${rupiah(x.unit_cost)}</td><td class="num">${rupiah(Number(x.qty)*Number(x.unit_cost))}</td></tr>`).join('');
+  const totalQty=bdCart.reduce((a,x)=>a+Number(x.qty||0),0),totalValue=bdCart.reduce((a,x)=>a+Number(x.qty||0)*Number(x.unit_cost||0),0);
+  const ref=$("bdReference").value||bdDocLabel({id:bdCurrentDocumentId||'DRAFT',received_at:$("bdDate").value});
+  const body=`<h1>SURAT JALAN / BUKTI PENERIMAAN BARANG</h1><div class="meta"><div><b>No. Surat Jalan</b><br>${esc(ref)}</div><div><b>Tanggal</b><br>${esc($("bdDate").value||'—')}</div><div><b>Supplier</b><br>${esc(sup?.supplier_name||'—')}</div><div><b>Lokasi Penerimaan</b><br>${esc(loc?.name||'—')}</div></div><table><thead><tr><th>No</th><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Harga Beli</th><th>Jumlah</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="3">TOTAL</th><th>${esc(totalQty)}</th><th></th><th>${rupiah(totalValue)}</th></tr></tfoot></table><p><b>Catatan:</b> ${esc($("bdNotes").value||'—')}</p><div class="sign"><div><div class="line"></div><b>${esc($("bdSender").value||'Nama Pengirim')}</b><br>Pengirim</div><div><div class="line"></div><b>${esc($("bdReceiver").value||'Nama Penerima')}</b><br>Penerima</div></div>`;
+  printHtmlDocument('Surat Jalan '+ref,body);
+}
+async function bdGetHistoryExportData(docId){
+  const doc=bdHistoryData.find(x=>x.id===docId);if(!doc)throw new Error('Dokumen tidak ditemukan di riwayat.');
+  const {data:items,error}=await client.from('stock_document_items').select('product_id,qty,unit_cost').eq('document_id',docId);if(error)throw error;
+  const ids=[...new Set((items||[]).map(x=>x.product_id).filter(Boolean))];let pmap={};
+  if(ids.length){const {data:ps,error:pe}=await client.from('products').select('id,sku,name').in('id',ids);if(pe)throw pe;(ps||[]).forEach(x=>pmap[x.id]=x);}
+  const sup=bdLookupCache.suppliers.find(x=>x.id===doc.supplier_id),loc=bdLookupCache.locations.find(x=>x.id===doc.location_id);
+  return {doc,items:(items||[]).map(x=>({...x,sku:pmap[x.product_id]?.sku||'',name:pmap[x.product_id]?.name||''})),supplier:sup?.supplier_name||'—',location:loc?.name||'—'};
+}
+async function bdExportHistoryCsv(docId){
+  try{const x=await bdGetHistoryExportData(docId),d=x.doc,ref=bdDocLabel(d);const rows=x.items.map(i=>[ref,d.received_at||d.created_at||'',x.supplier,x.location,d.sender_name||'',d.receiver_name||'',d.status,i.sku,i.name,i.qty,i.unit_cost,Number(i.qty||0)*Number(i.unit_cost||0)]);
+    bdDownloadCsv(`${bdSafeFilePart(ref)}.csv`,['kode_dokumen','tanggal','supplier','lokasi','nama_pengirim','nama_penerima','status','sku','nama_barang','qty','harga_beli','jumlah'],rows);
+  }catch(e){notify('Gagal mengunduh CSV: '+e.message,'err');}
+}
+async function bdExportHistoryPdf(docId){
+  try{const x=await bdGetHistoryExportData(docId),d=x.doc,ref=bdDocLabel(d);const totalQty=x.items.reduce((a,i)=>a+Number(i.qty||0),0),totalValue=x.items.reduce((a,i)=>a+Number(i.qty||0)*Number(i.unit_cost||0),0);
+    const rows=x.items.map((i,n)=>`<tr><td>${n+1}</td><td>${esc(i.sku||'—')}</td><td>${esc(i.name||'—')}</td><td class="num">${esc(i.qty)}</td><td class="num">${rupiah(i.unit_cost)}</td><td class="num">${rupiah(Number(i.qty)*Number(i.unit_cost))}</td></tr>`).join('');
+    const body=`<h1>SURAT JALAN / BUKTI PENERIMAAN BARANG</h1><div class="meta"><div><b>No. Surat Jalan</b><br>${esc(ref)}</div><div><b>Tanggal</b><br>${esc(d.received_at||d.created_at||'—')}</div><div><b>Supplier</b><br>${esc(x.supplier)}</div><div><b>Lokasi Penerimaan</b><br>${esc(x.location)}</div></div><table><thead><tr><th>No</th><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Harga Beli</th><th>Jumlah</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Tidak ada detail barang.</td></tr>'}</tbody><tfoot><tr><th colspan="3">TOTAL</th><th>${esc(totalQty)}</th><th></th><th>${rupiah(totalValue)}</th></tr></tfoot></table><p><b>Status:</b> ${esc(bdStatusText(d.status))}</p><p><b>Catatan:</b> ${esc(d.notes||'—')}</p><div class="sign"><div><div class="line"></div><b>${esc(d.sender_name||'')}</b><br>Pengirim</div><div><div class="line"></div><b>${esc(d.receiver_name||'')}</b><br>Penerima</div></div>`;
+    printHtmlDocument('Surat Jalan '+ref,body);
+  }catch(e){notify('Gagal membuat PDF: '+e.message,'err');}
+}
+function bdStatusText(status){return status==='posted'?'Berhasil':status==='cancelled'?'Dibatalkan':'Draft';}
 function comingSoon(menu) { notify("Menu " + menu + " akan dibuat pada tahap berikutnya."); }
 
 
@@ -1750,6 +1840,13 @@ let bdSavedProductIds = new Set();
 let bdIsSaved = false;
 let bdIsPosted = false;
 let bdLookupCache = { locations: [], suppliers: [] };
+let bdHistoryData = [];
+let bdHistoryFilter = "all";
+let bdHistoryPage = 1;
+const bdHistoryPageSize = 10;
+let bdCsvValidatedItems = [];
+let bdCsvValidationErrors = [];
+
 
 async function bdLoadLookups() {
   const locationSelect = $("bdLocation");
@@ -1778,59 +1875,130 @@ async function bdLoadLookups() {
   if (curSup) supplierSelect.value = curSup;
 }
 
-async function bdLoadDrafts() {
+async function bdLoadDrafts() { return bdLoadHistory(); }
+
+async function bdLoadHistory() {
   const tbody = $("bdDraftRows");
-  tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Memuat…</td></tr>';
-  $("bdDraftCount").textContent = "Memuat draft…";
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:15px;text-align:center;">Memuat riwayat…</td></tr>';
+  $("bdHistoryCount").textContent = "Memuat riwayat…";
+  if (!bdLookupCache.suppliers.length || !bdLookupCache.locations.length) await bdLoadLookups();
 
-  if (!bdLookupCache.suppliers.length || !bdLookupCache.locations.length) {
-    try { await bdLoadLookups(); }
-    catch (e) { notify("Gagal memuat supplier/lokasi: " + e.message, "err"); }
-  }
-
-  const { data, error } = await client
-    .from("stock_documents")
-    .select("id,status,received_at,reference_no,supplier_id,location_id,created_at")
-    .eq("status", "draft")
+  const { data, error } = await client.from("stock_documents")
+    .select("id,status,transaction_type,received_at,reference_no,supplier_id,location_id,created_at,posted_at,cancelled_at,created_by,posted_by,cancelled_by,sender_name,receiver_name,notes")
+    .eq("transaction_type", "purchase_in")
     .order("created_at", { ascending: false })
-    .limit(100);
-
+    .limit(300);
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px;text-align:center;color:#991b1b;">Gagal memuat draft: ${esc(error.message)}</td></tr>`;
-    $("bdDraftCount").textContent = "Gagal memuat draft.";
+    tbody.innerHTML = `<tr><td colspan="10" style="padding:15px;text-align:center;color:#991b1b;">Gagal memuat riwayat: ${esc(error.message)}</td></tr>`;
+    $("bdHistoryCount").textContent = "Gagal memuat riwayat.";
     return;
   }
-
-  const list = data || [];
-  $("bdDraftCount").textContent = `${list.length} draft surat jalan`;
-
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:15px;text-align:center;">Belum ada draft. Buat dokumen baru di atas.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = list.map(d => {
-    const sup = bdLookupCache.suppliers.find(s => s.id === d.supplier_id);
-    const loc = bdLookupCache.locations.find(l => l.id === d.location_id);
-    const supLabel = sup ? sup.supplier_code + " - " + sup.supplier_name : (d.supplier_id || "—");
-    const locLabel = loc ? loc.code + " - " + loc.name : (d.location_id || "—");
-
-    const shortId = String(d.id).slice(0, 6).toUpperCase();
-    const datePart = (d.received_at || d.created_at || "").slice(0, 10).replace(/-/g, "");
-    const shortLabel = d.reference_no ? d.reference_no : `BD-${datePart || "00000000"}-${shortId}`;
-    const isActive = bdCurrentDocumentId === d.id;
-
-    return `<tr class="draft-row ${isActive ? "active" : ""}" data-draft-id="${d.id}">
-      <td><b title="${esc(d.id)}">${esc(shortLabel)}</b></td>
-      <td>${esc(d.received_at || d.created_at || "—")}</td>
-      <td>${esc(supLabel)}</td>
-      <td>${esc(locLabel)}</td>
-      <td>${esc(d.reference_no || "—")}</td>
-      <td><span class="pill draft">Draft</span></td>
-      <td><button data-load-draft="${d.id}">Edit / Lanjutkan</button></td>
-    </tr>`;
-  }).join("");
+  bdHistoryData = data || [];
+  bdHistoryPage = 1;
+  $("bdStatDraft").textContent = bdHistoryData.filter(x => x.status === "draft").length;
+  $("bdStatPosted").textContent = bdHistoryData.filter(x => x.status === "posted").length;
+  $("bdStatCancelled").textContent = bdHistoryData.filter(x => x.status === "cancelled").length;
+  bdRenderHistory();
 }
+
+function bdSetHistoryFilter(filter, button) {
+  bdHistoryFilter = filter;
+  bdHistoryPage = 1;
+  document.querySelectorAll("[data-bd-history-filter]").forEach(b => b.classList.toggle("active", b === button));
+  bdRenderHistory();
+}
+
+function bdStatusLabel(status) {
+  if (status === "posted") return '<span class="pill posted">Berhasil</span>';
+  if (status === "cancelled") return '<span class="pill cancelled">Dibatalkan</span>';
+  return '<span class="pill draft">Draft</span>';
+}
+
+function bdDocLabel(d) {
+  const shortId = String(d.id).slice(0, 6).toUpperCase();
+  const datePart = (d.received_at || d.created_at || "").slice(0, 10).replace(/-/g, "");
+  return d.reference_no || `BD-${datePart || "00000000"}-${shortId}`;
+}
+
+function bdRenderHistory() {
+  const tbody = $("bdDraftRows");
+  const q = ($("bdHistorySearch")?.value || "").trim().toLowerCase();
+  const filtered = bdHistoryData.filter(d => {
+    if (bdHistoryFilter !== "all" && d.status !== bdHistoryFilter) return false;
+    const sup = bdLookupCache.suppliers.find(x => x.id === d.supplier_id);
+    const loc = bdLookupCache.locations.find(x => x.id === d.location_id);
+    const haystack = [bdDocLabel(d), d.id, d.reference_no, d.sender_name, d.receiver_name, sup?.supplier_code, sup?.supplier_name, loc?.code, loc?.name, d.status].join(" ").toLowerCase();
+    return !q || haystack.includes(q);
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / bdHistoryPageSize));
+  bdHistoryPage = Math.min(Math.max(1, bdHistoryPage), totalPages);
+  const start = (bdHistoryPage - 1) * bdHistoryPageSize;
+  const pageRows = filtered.slice(start, start + bdHistoryPageSize);
+  $("bdHistoryCount").textContent = `${filtered.length} dari ${bdHistoryData.length} dokumen surat jalan`;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:15px;text-align:center;">Tidak ada dokumen pada filter ini.</td></tr>';
+  } else {
+    tbody.innerHTML = pageRows.map((d, index) => {
+      const sup = bdLookupCache.suppliers.find(x => x.id === d.supplier_id);
+      const loc = bdLookupCache.locations.find(x => x.id === d.location_id);
+      const supLabel = sup ? `${sup.supplier_code} - ${sup.supplier_name}` : (d.supplier_id || "—");
+      const locLabel = loc ? `${loc.code} - ${loc.name}` : (d.location_id || "—");
+      const action = d.status === "draft"
+        ? `<button data-load-draft="${d.id}">Edit</button> <button class="danger" data-cancel-draft="${d.id}">Batal</button>`
+        : `<button data-view-history="${d.id}">Detail</button>`;
+      return `<tr class="draft-row ${bdCurrentDocumentId === d.id ? "active" : ""}" data-draft-id="${d.id}">
+        <td>${start + index + 1}</td>
+        <td><b title="${esc(d.id)}">${esc(bdDocLabel(d))}</b></td>
+        <td>${esc((d.received_at || d.created_at || "—").slice(0,10))}</td>
+        <td>${esc(d.reference_no || "—")}</td>
+        <td>${esc(supLabel)}</td><td>${esc(locLabel)}</td>
+        <td>${esc(d.sender_name || "—")}</td><td>${esc(d.receiver_name || "—")}</td>
+        <td>${bdStatusLabel(d.status)}</td>
+        <td><div class="history-actions">${action}<button data-export-pdf="${d.id}">PDF</button><button data-export-csv="${d.id}">CSV</button></div></td>
+      </tr>`;
+    }).join("");
+  }
+  const pager = $("bdHistoryPagination");
+  if (pager) pager.innerHTML = `<span>Menampilkan ${filtered.length ? start+1 : 0}–${Math.min(start+bdHistoryPageSize,filtered.length)} dari ${filtered.length} data</span><div class="page-actions"><button type="button" ${bdHistoryPage<=1?'disabled':''} onclick="bdHistoryGoPage(${bdHistoryPage-1})">‹ Sebelumnya</button><span>Halaman ${bdHistoryPage} / ${totalPages}</span><button type="button" ${bdHistoryPage>=totalPages?'disabled':''} onclick="bdHistoryGoPage(${bdHistoryPage+1})">Berikutnya ›</button></div>`;
+}
+function bdHistoryGoPage(page){bdHistoryPage=page;bdRenderHistory();}
+async function bdCancelDraft(docId) {
+  const doc = bdHistoryData.find(x => x.id === docId);
+  if (!doc || doc.status !== "draft") { notify("Hanya dokumen Draft yang dapat dibatalkan.", "err"); return; }
+  if (!confirm(`Batalkan dokumen ${bdDocLabel(doc)}? Draft akan masuk riwayat Dibatalkan dan stok tidak berubah.`)) return;
+  try {
+    const { data, error } = await client.rpc("rms_cancel_purchase_draft", { p_document_id: docId });
+    if (error) throw error;
+    if (bdCurrentDocumentId === docId) bdStartNew();
+    notify(data || "Draft berhasil dibatalkan.", "ok");
+    await bdLoadHistory();
+  } catch (e) {
+    notify("Gagal membatalkan draft: " + e.message + ". Pastikan SQL RPC pembatalan sudah dipasang.", "err");
+  }
+}
+
+async function bdViewHistory(docId) {
+  const d = bdHistoryData.find(x => x.id === docId);
+  if (!d) return;
+  const box = $("bdHistoryDetail");
+  box.style.display = "block";
+  box.innerHTML = '<p class="muted">Memuat detail…</p>';
+  try {
+    const { data: items, error } = await client.from("stock_document_items")
+      .select("product_id,qty,unit_cost").eq("document_id", docId);
+    if (error) throw error;
+    const ids = [...new Set((items || []).map(x => x.product_id))];
+    let pmap = {};
+    if (ids.length) {
+      const { data: ps, error: pe } = await client.from("products").select("id,sku,name").in("id", ids);
+      if (pe) throw pe;
+      (ps || []).forEach(x => pmap[x.id] = x);
+    }
+    box.innerHTML = `<div class="toolbar"><h3 style="margin:0">Detail ${esc(bdDocLabel(d))} — ${bdStatusText(d.status)}</h3><div class="right"><button type="button" onclick="bdExportHistoryPdf('${d.id}')">PDF</button><button type="button" onclick="bdExportHistoryCsv('${d.id}')">CSV</button><button type="button" onclick="$('bdHistoryDetail').style.display='none'">Tutup</button></div></div><p class="muted">Pengirim: ${esc(d.sender_name||'—')} · Penerima: ${esc(d.receiver_name||'—')}</p>
+      <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Nama Barang</th><th>Qty</th><th>Harga Beli</th></tr></thead><tbody>${(items || []).map(i => `<tr><td>${esc(pmap[i.product_id]?.sku || "—")}</td><td>${esc(pmap[i.product_id]?.name || "—")}</td><td>${esc(i.qty)}</td><td>${Number(i.unit_cost || 0).toLocaleString("id-ID")}</td></tr>`).join("") || '<tr><td colspan="4">Tidak ada detail.</td></tr>'}</tbody></table></div>`;
+  } catch (e) { box.innerHTML = `<p style="color:#991b1b">Gagal memuat detail: ${esc(e.message)}</p>`; }
+}
+
 
 async function bdLoadDraft(docId) {
   try {
@@ -2081,6 +2249,107 @@ async function bdPostDocument() {
   }
 }
 
+function bdDownloadCsvTemplate() {
+  const csv = "sku,barcode,qty,unit_cost\nSKU-001,,10,25000\n,8999999999999,5,18000\n";
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "template_barang_datang.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function bdParseCsv(text) {
+  const rows = []; let row = [], cell = "", quoted = false;
+  text = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i + 1];
+    if (quoted) {
+      if (c === '"' && next === '"') { cell += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(cell.trim()); cell = ""; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && next === '\n') i++;
+      row.push(cell.trim()); cell = "";
+      if (row.some(v => v !== "")) rows.push(row);
+      row = [];
+    } else cell += c;
+  }
+  row.push(cell.trim()); if (row.some(v => v !== "")) rows.push(row);
+  return rows;
+}
+
+async function bdValidateCsv() {
+  const file = $("bdCsvFile").files?.[0];
+  if (!file) { notify("Pilih file CSV terlebih dahulu.", "err"); return; }
+  const btn = $("bdCsvValidateBtn"); btn.disabled = true; btn.textContent = "Memvalidasi…";
+  $("bdCsvApplyBtn").disabled = true; bdCsvValidatedItems = []; bdCsvValidationErrors = [];
+  try {
+    const rows = bdParseCsv(await file.text());
+    if (rows.length < 2) throw new Error("CSV kosong atau hanya berisi header.");
+    if (rows.length - 1 > 5000) throw new Error("Maksimal 5000 baris per file CSV.");
+    const headers = rows[0].map(x => x.toLowerCase().replace(/^\ufeff/, ""));
+    const ix = { sku: headers.indexOf("sku"), barcode: headers.indexOf("barcode"), qty: headers.indexOf("qty"), unit_cost: headers.indexOf("unit_cost") };
+    if (ix.sku < 0 && ix.barcode < 0) throw new Error("Header wajib memiliki kolom sku atau barcode.");
+    if (ix.qty < 0) throw new Error("Kolom qty wajib tersedia.");
+    const raw = rows.slice(1).map((r, i) => ({ line: i + 2, sku: ix.sku >= 0 ? (r[ix.sku] || "").trim() : "", barcode: ix.barcode >= 0 ? (r[ix.barcode] || "").trim() : "", qtyText: (r[ix.qty] || "").trim(), costText: ix.unit_cost >= 0 ? (r[ix.unit_cost] || "").trim() : "" }));
+    const skus = [...new Set(raw.map(x => x.sku).filter(Boolean))];
+    const barcodes = [...new Set(raw.map(x => x.barcode).filter(Boolean))];
+    const productBySku = new Map(), productByBarcode = new Map();
+    const chunk = async (arr, size, fn) => { for (let i=0;i<arr.length;i+=size) await fn(arr.slice(i,i+size)); };
+    await chunk(skus, 100, async part => {
+      const { data, error } = await client.from("products").select("id,sku,name,purchase_price,is_active").in("sku", part);
+      if (error) throw error; (data || []).forEach(p => productBySku.set(p.sku, p));
+    });
+    await chunk(barcodes, 100, async part => {
+      const { data, error } = await client.from("product_barcodes").select("barcode,product_id").in("barcode", part);
+      if (error) throw error;
+      const ids = [...new Set((data || []).map(x => x.product_id))];
+      let pmap = new Map();
+      await chunk(ids, 100, async idpart => {
+        const { data: ps, error: pe } = await client.from("products").select("id,sku,name,purchase_price,is_active").in("id", idpart);
+        if (pe) throw pe; (ps || []).forEach(p => pmap.set(p.id, p));
+      });
+      (data || []).forEach(b => { const p = pmap.get(b.product_id); if (p) productByBarcode.set(b.barcode, p); });
+    });
+    const seen = new Set();
+    raw.forEach(r => {
+      const qty = Number(r.qtyText), cost = r.costText === "" ? null : Number(r.costText);
+      let product = (r.sku && productBySku.get(r.sku)) || (r.barcode && productByBarcode.get(r.barcode));
+      let err = "";
+      if (!r.sku && !r.barcode) err = "SKU/barcode kosong";
+      else if (!Number.isFinite(qty) || qty <= 0) err = "Qty harus lebih dari 0";
+      else if (cost !== null && (!Number.isFinite(cost) || cost < 0)) err = "Harga beli tidak valid";
+      else if (!product) err = "SKU/barcode tidak ditemukan";
+      else if (!product.is_active) err = "Produk nonaktif";
+      else if (seen.has(product.id)) err = "Produk duplikat dalam CSV";
+      if (product) seen.add(product.id);
+      if (err) bdCsvValidationErrors.push({ line:r.line, sku:r.sku, barcode:r.barcode, message:err });
+      else bdCsvValidatedItems.push({ product_id:product.id, sku:product.sku, name:product.name, qty, unit_cost:cost === null ? Number(product.purchase_price || 0) : cost, line:r.line });
+    });
+    const previewRows = bdCsvValidatedItems.map(x => `<tr><td>${x.line}</td><td>${esc(x.sku)}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>${Number(x.unit_cost).toLocaleString("id-ID")}</td><td><span class="pill posted">Valid</span></td></tr>`).concat(bdCsvValidationErrors.map(x => `<tr><td>${x.line}</td><td>${esc(x.sku || x.barcode)}</td><td>—</td><td>—</td><td>—</td><td><span class="pill cancelled">${esc(x.message)}</span></td></tr>`));
+    $("bdCsvPreview").style.display = "block";
+    $("bdCsvPreview").innerHTML = `<table><thead><tr><th>Baris</th><th>SKU/Barcode</th><th>Nama Barang</th><th>Qty</th><th>Harga Beli</th><th>Validasi</th></tr></thead><tbody>${previewRows.join("")}</tbody></table>`;
+    $("bdCsvStatus").textContent = `${bdCsvValidatedItems.length} baris valid, ${bdCsvValidationErrors.length} baris bermasalah. Perbaiki semua baris bermasalah sebelum memasukkan CSV.`;
+    $("bdCsvApplyBtn").disabled = !bdCsvValidatedItems.length || bdCsvValidationErrors.length > 0;
+  } catch (e) { $("bdCsvStatus").textContent = "Validasi gagal: " + e.message; notify("Validasi CSV gagal: " + e.message, "err"); }
+  finally { btn.disabled = false; btn.textContent = "Validasi CSV"; }
+}
+
+function bdApplyCsvToCart() {
+  if (!bdCsvValidatedItems.length || bdCsvValidationErrors.length) return;
+  const existing = new Set(bdCart.map(x => x.product_id));
+  const duplicate = bdCsvValidatedItems.find(x => existing.has(x.product_id));
+  if (duplicate) { notify(`SKU ${duplicate.sku} sudah ada di keranjang. Hapus/atur manual sebelum import CSV.`, "err"); return; }
+  bdCart.push(...bdCsvValidatedItems.map(({line, ...item}) => item));
+  bdRenderCart(); bdIsSaved = false;
+  $("bdPostButton").disabled = true;
+  $("bdCsvStatus").textContent = `${bdCsvValidatedItems.length} barang berhasil dimasukkan ke keranjang. Klik Simpan Draft.`;
+  $("bdCsvFile").value = ""; $("bdCsvPreview").style.display = "none"; $("bdCsvApplyBtn").disabled = true;
+  bdCsvValidatedItems = []; bdCsvValidationErrors = [];
+  notify("Data CSV masuk ke keranjang. Simpan Draft sebelum posting.", "ok");
+}
+
 function bdStartNew() {
   bdResetForm();
   $("bdFormTitle").textContent = "Informasi Penerimaan — Dokumen Baru";
@@ -2122,8 +2391,16 @@ document.getElementById("bdCartRows").addEventListener("click", e => {
 });
 
 document.getElementById("bdDraftRows").addEventListener("click", e => {
-  const btn = e.target.closest("button[data-load-draft]");
-  if (btn) { e.stopPropagation(); bdLoadDraft(btn.dataset.loadDraft); return; }
+  const loadBtn = e.target.closest("button[data-load-draft]");
+  if (loadBtn) { e.stopPropagation(); bdLoadDraft(loadBtn.dataset.loadDraft); return; }
+  const cancelBtn = e.target.closest("button[data-cancel-draft]");
+  if (cancelBtn) { e.stopPropagation(); bdCancelDraft(cancelBtn.dataset.cancelDraft); return; }
+  const viewBtn = e.target.closest("button[data-view-history]");
+  if (viewBtn) { e.stopPropagation(); bdViewHistory(viewBtn.dataset.viewHistory); return; }
+  const pdfBtn = e.target.closest("button[data-export-pdf]");
+  if (pdfBtn) { e.stopPropagation(); bdExportHistoryPdf(pdfBtn.dataset.exportPdf); return; }
+  const csvBtn = e.target.closest("button[data-export-csv]");
+  if (csvBtn) { e.stopPropagation(); bdExportHistoryCsv(csvBtn.dataset.exportCsv); return; }
   const row = e.target.closest("tr[data-draft-id]");
   if (row) bdLoadDraft(row.dataset.draftId);
 });
