@@ -622,7 +622,8 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
           <button type="button" data-ops="promo" onclick="switchOps('promo')">Promo</button>
           <button type="button" data-ops="tax" onclick="switchOps('tax')">Pajak</button>
           <button type="button" data-ops="price" onclick="switchOps('price')">Cek Harga</button>
-          <button type="button" data-ops="return" onclick="switchOps('return')">Return</button>
+          <button type="button" data-ops="refund" onclick="switchOps('refund')">Refund</button>
+          <button type="button" data-ops="supplier-return" onclick="switchOps('supplier-return')">Return ke Supplier</button>
           <button type="button" data-ops="damage" onclick="switchOps('damage')">Barang Rusak</button>
           <button type="button" data-ops="opname" onclick="switchOps('opname')">Stok Opname</button>
           <button type="button" data-ops="reports" onclick="switchOps('reports')">Laporan</button>
@@ -824,16 +825,16 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         </div>
 
         <!-- ===== RETURN & REFUND ===== -->
-        <div id="ops-return" class="ops-section">
+        <div id="ops-refund" class="ops-section">
           <div class="ops-info-banner warning">
             <span class="info-icon">⚠️</span>
             <div>
-              <b>Modul Return & Refund belum terhubung ke database.</b><br>
+              <b>Modul Refund belum terhubung ke database.</b><br>
               Diperlukan RPC <code>rms_process_return</code> dengan validasi transaksi asli, batas refund, dan stok masuk kembali.
             </div>
           </div>
           <div class="ops-card">
-            <h3>↩️ Form Return Barang</h3>
+            <h3>💸 Form Refund Penjualan</h3>
             <div class="ops-grid-2">
               <div><label>Nomor Struk / Transaksi</label><input id="retReceipt" placeholder="Masukkan nomor struk"></div>
               <div><label>Barcode / SKU</label><input id="retBarcode" placeholder="Cari barang dari transaksi"></div>
@@ -877,6 +878,28 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
               <button type="button" onclick="printReturnForm()">🖨️ Cetak Form</button>
               <button type="button" class="primary" onclick="notify('Return/refund belum terhubung ke RPC.','err')">Proses Retur</button>
             </div>
+          </div>
+        </div>
+
+        <!-- ===== RETURN BARANG KE SUPPLIER ===== -->
+        <div id="ops-supplier-return" class="ops-section">
+          <div class="ops-info-banner warning">
+            <span class="info-icon">⚠️</span>
+            <div><b>Form Return ke Supplier siap dari sisi tampilan, posting belum diaktifkan.</b><br>Posting harus memakai dokumen stok tipe <code>supplier_return</code> melalui RPC Supabase yang memvalidasi stok, supplier, lokasi, dan hak akses. Jangan mengurangi stok langsung dari browser.</div>
+          </div>
+          <div class="ops-card">
+            <h3>↗️ Pengembalian Barang ke Supplier</h3>
+            <div class="ops-grid-2">
+              <div><label>Lokasi / Store *</label><select id="srLocation"><option value="">Pilih lokasi</option></select></div>
+              <div><label>Supplier *</label><select id="srSupplier"><option value="">Pilih supplier</option></select></div>
+              <div><label>No. Dokumen / Referensi *</label><input id="srReference" placeholder="Nomor retur / surat jalan"></div>
+              <div><label>Tanggal Return *</label><input id="srDate" type="date"></div>
+              <div><label>Barcode / SKU</label><input id="srBarcode" placeholder="Scan atau ketik barcode / SKU"></div>
+              <div><label>Qty Return</label><input id="srQty" type="number" min="1" step="1" placeholder="0"></div>
+            </div>
+            <div style="margin-top:10px"><label>Catatan / Alasan</label><textarea id="srNotes" rows="3" placeholder="Alasan pengembalian barang ke supplier"></textarea></div>
+            <div class="actions"><button type="button" class="primary" disabled title="Menunggu RPC Supabase supplier_return">Simpan Draft Return</button><button type="button" disabled title="Menunggu RPC Supabase supplier_return">Posting Return</button></div>
+            <p class="muted">Tombol penyimpanan dinonaktifkan sementara agar tidak ada transaksi palsu atau stok berkurang tanpa pencatatan audit.</p>
           </div>
         </div>
 
@@ -962,7 +985,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;
         <div id="ops-reports" class="ops-section">
           <h2>Laporan RMS</h2>
           <div class="grid">
-            <div><label>Jenis Laporan</label><select id="reportType" onchange="reportTypeChanged()"><option value="stock_store">Stok per Store</option><option value="sales">Sales / Penjualan Kasir</option><option value="stock_movement">Pergerakan Stok</option></select></div>
+            <div><label>Jenis Laporan</label><select id="reportType" onchange="reportTypeChanged()"><option value="stock_store">Stok per Store</option><option value="sales">Sales / Penjualan Kasir</option><option value="supplier_return">Return Barang ke Supplier</option><option value="damage">Barang Rusak</option><option value="refund">Refund</option><option value="stock_movement">Pergerakan Stok</option></select></div>
             <div><label>Lokasi</label><select id="reportLocation"><option value="all">Semua lokasi yang dapat diakses</option></select></div>
             <div><label>Dari Tanggal</label><input id="reportFrom" type="date"></div>
             <div><label>Sampai Tanggal</label><input id="reportTo" type="date"></div>
@@ -1228,7 +1251,7 @@ function backOpsToMenu() {
   window.scrollTo(0,0);
 }
 function switchOps(module) {
-  const titles = {pos:"POS Kasir",promo:"Manajemen Promo",tax:"Manajemen Pajak",price:"Cek Harga",return:"Return & Refund",damage:"Barang Rusak",opname:"Stok Opname",reports:"Laporan RMS",inventory:"Stok Inventaris"};
+  const titles = {pos:"POS Kasir",promo:"Manajemen Promo",tax:"Manajemen Pajak",price:"Cek Harga",refund:"Refund", "supplier-return":"Return Barang ke Supplier",damage:"Barang Rusak",opname:"Stok Opname",reports:"Laporan RMS",inventory:"Stok Inventaris"};
   $("opsTitle").textContent = titles[module] || "Operasional RMS";
   document.querySelectorAll(".ops-section").forEach(el => el.classList.toggle("active", el.id === "ops-"+module));
   document.querySelectorAll(".ops-tabs [data-ops]").forEach(el => el.classList.toggle("active", el.dataset.ops === module));
@@ -1241,12 +1264,13 @@ function switchOps(module) {
 }
 async function loadOpsLocations() {
   if (!client) return;
-  const ids = ["posLocation","damageLocation","opnameLocation"];
+  const ids = ["posLocation","damageLocation","opnameLocation","srLocation"];
   const {data,error} = await client.from("locations").select("id,code,name,location_type").eq("is_active",true).order("name");
   if (error) { notify("Gagal memuat lokasi: "+error.message,"err"); return; }
   storeCache = data || [];
   ids.forEach(id => { const el=$(id); if(!el)return; const keep=el.value; el.innerHTML='<option value="">Pilih lokasi</option>'+((data||[]).map(x=>`<option value="${esc(x.id)}">${esc(x.code)} - ${esc(x.name)}</option>`).join("")); if(keep)el.value=keep; });
   if($("posLocation")?.value) await posLoadLocationStock();
+  const srSup=$("srSupplier"); if(srSup){ const keep=srSup.value; const {data:sups,error:se}=await client.from("suppliers").select("id,supplier_code,supplier_name").eq("is_active",true).order("supplier_name"); if(se){notify("Gagal memuat supplier return: "+se.message,"err");} else {srSup.innerHTML='<option value="">Pilih supplier</option>'+(sups||[]).map(x=>`<option value="${esc(x.id)}">${esc(x.supplier_code+" - "+x.supplier_name)}</option>`).join(""); if(keep)srSup.value=keep;} }
   ["invLocationFilter","reportLocation"].forEach(id=>{const el=$(id);if(!el)return;const keep=el.value||"all";el.innerHTML='<option value="all">Semua lokasi yang dapat diakses</option>'+((data||[]).map(x=>`<option value="${esc(x.id)}">${esc(x.code)} - ${esc(x.name)}</option>`).join(""));el.value=keep;});
 }
 
@@ -1340,7 +1364,14 @@ function buildSalesReportRows(locationId="all"){
   const from=$("reportFrom")?.value||"",to=$("reportTo")?.value||"";
   return invSalesItems.filter(i=>saleMap.has(i.sale_id)).map(i=>{const s=saleMap.get(i.sale_id),l=locMap.get(s.location_id)||{},stamp=s.completed_at||s.created_at;return {_stamp:stamp,Tanggal:stamp?new Date(stamp).toLocaleString("id-ID"):"",No_Struk:s.receipt_no||"",Store:l.code||l.name||"",SKU:i.sku||"",Barcode:i.barcode||"",Nama_Barang:i.product_name||"",Qty:Number(i.qty||0),Harga_Satuan:Number(i.unit_price||0),Diskon:Number(i.discount_amount||0),Total_Baris:Number(i.line_total||0),Status:s.status||""};}).filter(r=>{const d=String(r._stamp||"").slice(0,10);return (!from||d>=from)&&(!to||d<=to);}).sort((a,b)=>new Date(a._stamp)-new Date(b._stamp)).map(({_stamp,...r})=>r);
 }
-function reportTypeChanged(){const type=$("reportType")?.value||"stock_store";const dateEnabled=["stock_movement","sales"].includes(type);["reportFrom","reportTo"].forEach(id=>{const el=$(id);if(el)el.disabled=!dateEnabled;});}
+
+function buildMovementTypeReportRows(locationId, transactionType){
+  const from=$("reportFrom")?.value||"",to=$("reportTo")?.value||"";
+  return invMovements.filter(m=>m.transaction_type===transactionType&&(locationId==="all"||m.location_id===locationId)).filter(m=>{const d=String(m.created_at||"").slice(0,10);return (!from||d>=from)&&(!to||d<=to);}).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(m=>{const p=invProducts.find(x=>x.id===m.product_id)||{},l=invLocations.find(x=>x.id===m.location_id)||{};return {Tanggal:m.created_at?new Date(m.created_at).toLocaleString("id-ID"):"",Barcode:(p.barcodes||[]).join(", "),SKU:p.sku||"",Nama_Barang:p.name||"",Store:l.code||l.name||"",Qty_Return:Number(Math.abs(m.qty_change||0)),Referensi:m.reference_id||"",Catatan:m.notes||""};});
+}
+function buildDamageReportRows(locationId){return buildMovementTypeReportRows(locationId,"breakage").map(r=>({Tanggal:r.Tanggal,Barcode:r.Barcode,SKU:r.SKU,Nama_Barang:r.Nama_Barang,Store:r.Store,Qty_Rusak:r.Qty_Return,Referensi:r.Referensi,Catatan:r.Catatan}));}
+
+function reportTypeChanged(){const type=$("reportType")?.value||"stock_store";const dateEnabled=["stock_movement","sales","supplier_return","damage","refund"].includes(type);["reportFrom","reportTo"].forEach(id=>{const el=$(id);if(el)el.disabled=!dateEnabled;});}
 function renderReportPage(){
   const rows=currentReportRows||[],totalPages=Math.max(1,Math.ceil(rows.length/REPORT_PAGE_SIZE));reportCurrentPage=Math.min(Math.max(1,reportCurrentPage),totalPages);
   $("reportTableScroll")?.classList.toggle("stock-report-mode",($("reportType")?.value||"")==="stock_store");
@@ -1360,10 +1391,19 @@ function showRmsReport(){
     currentReportRows=buildMovementReportRows(loc);currentReportHeaders=["Tanggal","Barcode","SKU","Nama_Barang","Store","Jenis_Transaksi","Qty_Mutasi","Referensi","Catatan"];currentReportName="Laporan_Pergerakan_Stok";
   } else if(type==="sales"){
     currentReportRows=buildSalesReportRows(loc);currentReportHeaders=["Tanggal","No_Struk","Store","SKU","Barcode","Nama_Barang","Qty","Harga_Satuan","Diskon","Total_Baris","Status"];currentReportName="Laporan_Sales";
+  } else if(type==="supplier_return"){
+    currentReportRows=buildMovementTypeReportRows(loc,"supplier_return");currentReportHeaders=["Tanggal","Barcode","SKU","Nama_Barang","Store","Qty_Return","Referensi","Catatan"];currentReportName="Laporan_Return_ke_Supplier";
+  } else if(type==="damage"){
+    currentReportRows=buildDamageReportRows(loc);currentReportHeaders=["Tanggal","Barcode","SKU","Nama_Barang","Store","Qty_Rusak","Referensi","Catatan"];currentReportName="Laporan_Barang_Rusak";
+  } else if(type==="refund"){
+    currentReportRows=[];currentReportHeaders=["Tanggal","No_Refund","No_Struk","Store","Nilai_Refund","Metode","Status"];
+    currentReportName="Laporan_Refund";
   }
   reportCurrentPage=1;renderReportPage();
-  $("reportSummary").textContent=`${currentReportRows.length.toLocaleString("id-ID")} baris laporan.`;
+  const note=type==="refund"?"Belum ada sumber data refund yang teridentifikasi di HTML/database yang diberikan. Laporan Refund belum dapat menampilkan transaksi sampai tabel dan RPC refund diaudit serta dihubungkan.":`${currentReportRows.length.toLocaleString("id-ID")} baris laporan.`;
+  $("reportSummary").textContent=note;
 }
+
 function downloadExcel(rows,filename,sheetName){
   if(!window.XLSX){notify("Library Excel belum termuat.","err");return;}
   if(!rows||!rows.length){notify("Tidak ada data.","err");return;}
